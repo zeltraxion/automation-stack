@@ -13,11 +13,6 @@ n8n_data/
 *.db
 *.db-journal
 
-# Local filesystem and uploaded files
-/files/*
-!/files/.gitkeep
-!/files/README.md
-
 # Workflow exports are often committed intentionally; keep them out of the ignore list
 # unless you intentionally want them generated locally only.
 

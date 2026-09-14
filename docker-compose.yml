@@ -11,9 +11,12 @@ services:
       - TZ=${GENERIC_TIMEZONE}
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_RESTRICT_FILE_ACCESS_TO=/vault
     volumes:
       - n8n_data:/home/node/.n8n
-      - ./files:/files
+      - ${VAULT_PATH}/control_plane:/vault/control_plane:ro
+      - ${VAULT_PATH}/dashboard:/vault/dashboard
+      - ${VAULT_PATH}/files:/vault/files
 
 volumes:
   n8n_data:
