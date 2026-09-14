@@ -1,11 +1,3 @@
----
-generated_by: claude
-human_requestor: swapnil.bhattacharya@clearroute.io
-date: 2026-09-14
-review_status: unreviewed
-reviewed_by:
----
-
 <div align="center">
   <img src="https://capsule-render.vercel.app/api?type=waving&color=1F1B2E&height=160&section=header&text=n8n-project&fontSize=48&animation=fadeIn&fontAlignY=36&fontColor=EA4B71&desc=Self-Hosted%20Automation%20%7C%20Local%20First%2C%20Cloud%20Later&descAlignY=56&descColor=ffffff" width="100%"/>
 </div>
