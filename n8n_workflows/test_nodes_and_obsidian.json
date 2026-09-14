@@ -1,0 +1,484 @@
+{
+  "name": "test_nodes_and_obsidian",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -784,
+        -256
+      ],
+      "id": "e57a4897-7b56-4305-9027-f3f12f31add5",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "jsCode": "return[\n  { json: {name: \"Swapnil\", role: \"Full Stack Developer\", years: 1} },\n  { json: {name: \"Bob\", role: \"QA\", years: 4} },\n  { json: {name: \"John\", role: \"DevOps\", years: 5} },\n]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -560,
+        -256
+      ],
+      "id": "3ee96dcd-d63f-4ac8-be99-9d641b0c7967",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "32b53e6a-6e79-4e4e-8e7e-d99195ebe0f5",
+              "name": "label",
+              "value": "={{ $json.name }} is a {{ $json.years >= 5? 'senior': 'junior' }} {{ $json.role }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -336,
+        -256
+      ],
+      "id": "d96a7d35-7dc0-49d3-98d1-8804a4d0dcba",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "people",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -112,
+        -256
+      ],
+      "id": "c4563b96-bfd0-4ee7-9c8d-8ade88f5f9ee",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "991bedf5-44cb-4d91-b306-917e63f9c402",
+              "name": "count",
+              "value": "={{ $json.people.length }}",
+              "type": "number"
+            },
+            {
+              "id": "403f5278-1ab9-4cb5-a110-fa69f9df93c1",
+              "name": "everyone",
+              "value": "={{ $json.people.map(p => p.name).join(', ') }}",
+              "type": "string"
+            },
+            {
+              "id": "917a69fe-3ba8-4f48-bc7b-71e78c49312c",
+              "name": "seniors",
+              "value": "={{ $json.people.filter(p => p.years >= 5).map(p => p.name).join(', ') }}",
+              "type": "string"
+            },
+            {
+              "id": "72a6d15d-b1c9-4ce8-8263-a902e4afee8e",
+              "name": "first",
+              "value": "={{ $('Edit Fields').first().json.name }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        112,
+        -256
+      ],
+      "id": "ab2ebaa0-01a2-4abd-b966-1daf1b46f90f",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "content": "## BASIC NODE TESTS",
+        "height": 320,
+        "width": 1136,
+        "color": "#8C4A4A"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -832,
+        -416
+      ],
+      "id": "3f660ac0-8fb7-4455-a8a4-f69b0ff13062",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/vault/control_plane/services.md",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        -576,
+        64
+      ],
+      "id": "317779a5-0185-4ae0-993e-f918ed64b912",
+      "name": "Read/Write Files from Disk",
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -352,
+        64
+      ],
+      "id": "74fedf1f-b3af-433f-83c8-ae4770440bf9",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $input.first().json.data;\nconst props = {};\n\nconst match = text.match(/^---\\r?\\n([\\s\\S]*?)\\r?\\n---/);\n\nif (match) {\n  for (const line of match[1].split(/\\r?\\n/)) {\n    const kv = line.match(/^([\\w-]+):\\s*(.*)$/);\n    if (!kv) continue;\n\n    let v = kv[2].trim().replace(/^[\"'](.*)[\"']$/, '$1');\n    if (v === 'true') v = true;\n    else if (v === 'false') v = false;\n    else if (v === '') v = null;\n    else if (/^-?\\d+(\\.\\d+)?$/.test(v)) v = Number(v);\n\n    props[kv[1]] = v;\n  }\n}\n\nreturn [{ json: props }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        64
+      ],
+      "id": "da6f24e9-c9c7-4dbd-a413-f1d738cabb01",
+      "name": "Get Contents"
+    },
+    {
+      "parameters": {
+        "jsCode": "const c = $json;\nconst now = $now.toFormat('yyyy-LL-dd HH:mm');\n\nconst row = (name, on) => `| ${name} | ${on ? '🟢 on' : '🔴 off'} |`;\n\nconst md = `---\ngenerated_at: ${now}\n---\n\n# Status\n\n| Service | State |\n|---|---|\n${row('Backup', c.backup_enabled)}\n${row('Daily summary', c.daily_summary_enabled)}\n\n_Written by n8n — do not edit by hand._\n`;\n\nreturn [{ json: { md } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        96,
+        -32
+      ],
+      "id": "aa01f72b-8766-4ba3-899f-c5fcb247942f",
+      "name": "Build the Markdown"
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "md",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        320,
+        -32
+      ],
+      "id": "b01250b0-0fee-4391-b7f7-11ebbb201324",
+      "name": "Convert to File"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "/vault/dashboard/status.md",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        544,
+        -32
+      ],
+      "id": "c1df8d2b-9ac6-41cf-b29a-67755b0215d5",
+      "name": "Read/Write Files from Disk1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "865569ad-7035-4c27-acab-d75d6155d9f0",
+              "leftValue": "={{ $json.backup_enabled }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        96,
+        160
+      ],
+      "id": "94ac6dfb-93ec-40fc-82df-359f918094cc",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "md",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        544,
+        160
+      ],
+      "id": "b6aa9b51-3991-4bc9-9be6-2dbe68189f99",
+      "name": "Convert to File1"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "/vault/dashboard/backup_last_run.md",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        768,
+        160
+      ],
+      "id": "f250c10c-8784-4df2-94a0-d3e531a6324a",
+      "name": "Read/Write Files from Disk2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = $now.toFormat('yyyy-LL-dd HH:mm');\n\nreturn [{ json: {\n  md: `---\nlast_run: ${now}\n---\n\n# Backup\n\nRan at ${now}.\n\n_Written by n8n — do not edit by hand._\n`\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        160
+      ],
+      "id": "398a97cc-bcce-4cc8-b3bc-281e6f09fa66",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "content": "## TESTING OBSIDIAN FILE BASED TOGGLE",
+        "height": 384,
+        "width": 1792,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -832,
+        -64
+      ],
+      "id": "870f2108-034d-4c98-97c4-28bbd4fc3cf2",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -800,
+        64
+      ],
+      "id": "9a1a56a0-8756-4758-9291-a87346aad218",
+      "name": "Schedule Trigger"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Get Contents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Contents": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build the Markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build the Markdown": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File1": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Convert to File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "30a747c9-9362-4d43-b757-adbe6f7264ec",
+  "meta": {
+    "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"
+  },
+  "nodeGroups": [],
+  "id": "WGE9Ml7be4r2tK42",
+  "tags": []
+}
