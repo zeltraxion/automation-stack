@@ -59,3 +59,9 @@ Thumbs.db
 # =========================
 build/
 coverage/
+
+# =========================
+# Generated analysis output
+# =========================
+# graphify rebuilds this from the repo on demand. Same reasoning as build/.
+graphify-out/

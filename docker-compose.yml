@@ -17,6 +17,8 @@ services:
       - ${VAULT_PATH:?Set VAULT_PATH to an absolute vault path}/control_plane:/vault/control_plane:ro
       - ${VAULT_PATH:?Set VAULT_PATH to an absolute vault path}/dashboard:/vault/dashboard
       - ${VAULT_PATH:?Set VAULT_PATH to an absolute vault path}/files:/vault/files
+      - ${VAULT_PATH:?Set VAULT_PATH to an absolute vault path}/memory/briefing:/vault/memory/briefing:ro
+      - ${VAULT_PATH:?Set VAULT_PATH to an absolute vault path}/memory/learned:/vault/memory/learned
 
 volumes:
   n8n_data:
