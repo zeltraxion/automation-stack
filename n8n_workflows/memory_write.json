@@ -1,0 +1,319 @@
+{
+  "name": "memory_write",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "filename"
+            },
+            {
+              "name": "topic"
+            },
+            {
+              "name": "summary"
+            },
+            {
+              "name": "fact"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -48,
+        -32
+      ],
+      "id": "4729f054-e88c-4cb2-b7f6-9b835aadf188",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "99a16ebb-8a6e-42df-ab4e-d70ae3233be2",
+              "leftValue": "={{ $json.fact.trim() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "04423477-65fd-49fa-83ad-06c1f8d65dd6",
+              "leftValue": "={{ $json.safeName }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        400,
+        -32
+      ],
+      "id": "020f46a4-925c-43e9-aabe-858f23ca3764",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "618b9f8d-2732-498e-8043-8a885a7d7f7b",
+              "name": "result",
+              "value": "=saved: {{ $binary.obsData.fileName }}.md",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1072,
+        -128
+      ],
+      "id": "1bdb23a2-3541-4de6-b164-4cf18e87fb21",
+      "name": "results_saved"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3c2d1371-3461-4526-8406-362763e2d05c",
+              "name": "markdown",
+              "value": "=---\ncreated: {{ $now.toISODate() }}\nsource: inferred\ntopic: {{ $json.topic }}\nsummary: {{ $json.summary }}\n---\n{{ $json.fact }}\n",
+              "type": "string"
+            },
+            {
+              "id": "c2b7aecc-a42b-44be-842f-dda11ff8f614",
+              "name": "safeName",
+              "value": "={{ ($json.filename || '').replace(/[^a-z0-9-]/gi, '-').toLowerCase().slice(0, 60) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        176,
+        -32
+      ],
+      "id": "fe4cce13-d978-41aa-84a4-da4ccc0505cb",
+      "name": "arrange_fields"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/vault/memory/learned/{{ $binary.obsData.fileName }}.md",
+        "dataPropertyName": "obsData",
+        "options": {
+          "append": false
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        848,
+        -128
+      ],
+      "id": "0bc0a60c-fc08-4170-a99d-3aef8062959d",
+      "name": "write_to_obsidian"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AN74FTGA0",
+          "mode": "id"
+        },
+        "text": "=:warning: *[memory_write]* rejected\n> filename: {{ $('arrange_fields').item.json.filename }}\n> topic: {{ $('arrange_fields').item.json.topic }}\n> reason: empty fact or unusable filename",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        624,
+        64
+      ],
+      "id": "8ed2b185-1150-4555-b7b4-ba770e6776f5",
+      "name": "error_and_warning_logs",
+      "webhookId": "59f3e64c-4961-4bbc-a213-a7a963fafbd7",
+      "notesInFlow": false,
+      "credentials": {
+        "slackApi": {
+          "id": "Evd3eBEncrme7O5O",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "markdown",
+        "binaryPropertyName": "obsData",
+        "options": {
+          "fileName": "={{ $json.safeName }}"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        624,
+        -128
+      ],
+      "id": "0551e67f-293c-4b18-9d8c-60d19f2f0ff5",
+      "name": "convert_to_binary"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9eb3e318-bd31-4a62-a2e2-f73eeaa9d069",
+              "name": "result",
+              "value": "not saved: fact was empty or filename unusable",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        848,
+        64
+      ],
+      "id": "0a663134-ecdb-4d30-be80-b7c348615274",
+      "name": "results_rejected"
+    }
+  ],
+  "pinData": {
+    "When Executed by Another Workflow": [
+      {
+        "json": {
+          "filename": "oracle-server-address",
+          "topic": "servers",
+          "summary": "Oracle Cloud instance address",
+          "fact": "The Oracle box is at 10.0.0.42, SSH on port 22 as user ubuntu."
+        }
+      }
+    ]
+  },
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "arrange_fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "convert_to_binary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error_and_warning_logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "arrange_fields": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "write_to_obsidian": {
+      "main": [
+        [
+          {
+            "node": "results_saved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "error_and_warning_logs": {
+      "main": [
+        [
+          {
+            "node": "results_rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "convert_to_binary": {
+      "main": [
+        [
+          {
+            "node": "write_to_obsidian",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "db440ac2-1442-49e8-9742-7270656fd152",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"
+  },
+  "nodeGroups": [],
+  "id": "z8kF1FdH9G7tt0SC",
+  "tags": []
+}

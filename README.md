@@ -90,14 +90,17 @@ its own UI — so keeping values out of the compose file is what makes the migra
 <h2 align="center">🔐 The Vault Mounts</h2>
 
 An Obsidian vault is mounted in as the control surface — you command from `control_plane`, n8n reports into `dashboard`,
+you brief the agent in `memory/briefing`, the agent remembers into `memory/learned`,
 and each folder has exactly one writer. ⟦REVIEW src: docker-compose.yml, volumes block⟧
 
-| Folder           | You                          | n8n           | Mounted as    |
-|------------------|------------------------------|---------------|---------------|
-| `notes/`         | read + write                 | **no access** | *not mounted* |
-| `control_plane/` | read + write — the switches  | read only     | `:ro`         |
-| `dashboard/`     | read only — generated output | read + write  | writable      |
-| `files/`         | read + write                 | read + write  | writable      |
+| Folder             | You                            | n8n           | Mounted as    |
+|--------------------|--------------------------------|---------------|---------------|
+| `notes/`           | read + write                   | **no access** | *not mounted* |
+| `control_plane/`   | read + write — the switches    | read only     | `:ro`         |
+| `memory/briefing/` | read + write — facts you give  | read only     | `:ro`         |
+| `dashboard/`       | read only — generated output   | read + write  | writable      |
+| `memory/learned/`  | read + delete — agent's memory | read + write  | writable      |
+| `files/`           | read + write                   | read + write  | writable      |
 
 Three separate mechanisms are at work, and each protects something different — they do not stack on the same folder:
 ⟦REVIEW⟧
