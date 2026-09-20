@@ -23,7 +23,7 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.2,
       "position": [
-        -48,
+        -80,
         -32
       ],
       "id": "4729f054-e88c-4cb2-b7f6-9b835aadf188",
@@ -41,7 +41,7 @@
           "conditions": [
             {
               "id": "99a16ebb-8a6e-42df-ab4e-d70ae3233be2",
-              "leftValue": "={{ $json.fact.trim() }}",
+              "leftValue": "={{ ($json.fact || '').trim() }}",
               "rightValue": "",
               "operator": {
                 "type": "string",
@@ -58,6 +58,16 @@
                 "operation": "notEmpty",
                 "singleValue": true
               }
+            },
+            {
+              "id": "22f7cd10-6758-4b90-a6b4-1ab6a2494627",
+              "leftValue": "={{ $json.safeName.replace(/-/g, '') }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -67,7 +77,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        400,
+        368,
         -32
       ],
       "id": "020f46a4-925c-43e9-aabe-858f23ca3764",
@@ -90,8 +100,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
-        1072,
-        -128
+        1040,
+        -224
       ],
       "id": "1bdb23a2-3541-4de6-b164-4cf18e87fb21",
       "name": "results_saved"
@@ -103,7 +113,7 @@
             {
               "id": "3c2d1371-3461-4526-8406-362763e2d05c",
               "name": "markdown",
-              "value": "=---\ncreated: {{ $now.toISODate() }}\nsource: inferred\ntopic: {{ $json.topic }}\nsummary: {{ $json.summary }}\n---\n{{ $json.fact }}\n",
+              "value": "=---\ncreated: {{ $now.toISODate() }}\nsource: inferred\ntopic: \"{{ ($json.topic || '').replace(/[\\r\\n]+/g, ' ').replace(/\"/g, \"'\") }}\"\nsummary: \"{{ ($json.summary || '').replace(/[\\r\\n]+/g, ' ').replace(/\"/g, \"'\") }}\"\n---\n\n{{ $json.fact }}",
               "type": "string"
             },
             {
@@ -120,7 +130,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
-        176,
+        144,
         -32
       ],
       "id": "fe4cce13-d978-41aa-84a4-da4ccc0505cb",
@@ -138,11 +148,12 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1.1,
       "position": [
-        848,
+        816,
         -128
       ],
       "id": "0bc0a60c-fc08-4170-a99d-3aef8062959d",
-      "name": "write_to_obsidian"
+      "name": "write_to_obsidian",
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -160,7 +171,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
       "position": [
-        624,
+        592,
         64
       ],
       "id": "8ed2b185-1150-4555-b7b4-ba770e6776f5",
@@ -172,7 +183,8 @@
           "id": "Evd3eBEncrme7O5O",
           "name": "Slack account"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -186,7 +198,7 @@
       "type": "n8n-nodes-base.convertToFile",
       "typeVersion": 1.1,
       "position": [
-        624,
+        592,
         -128
       ],
       "id": "0551e67f-293c-4b18-9d8c-60d19f2f0ff5",
@@ -209,11 +221,34 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
-        848,
+        816,
         64
       ],
       "id": "0a663134-ecdb-4d30-be80-b7c348615274",
       "name": "results_rejected"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "618b9f8d-2732-498e-8043-8a885a7d7f7b",
+              "name": "result",
+              "value": "not saved: write to disk failed",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1040,
+        -32
+      ],
+      "id": "972a1a85-5203-40ce-9648-89f9f62ce6f6",
+      "name": "results_write_failed"
     }
   ],
   "pinData": {
@@ -255,7 +290,8 @@
             "type": "main",
             "index": 0
           }
-        ]
+        ],
+        []
       ]
     },
     "arrange_fields": {
@@ -277,11 +313,25 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "results_write_failed",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "error_and_warning_logs": {
       "main": [
+        [
+          {
+            "node": "results_rejected",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "results_rejected",
@@ -308,7 +358,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "db440ac2-1442-49e8-9742-7270656fd152",
+  "versionId": "5edd66a1-7b91-4d83-8ddd-18ac399a40b0",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"
