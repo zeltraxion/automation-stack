@@ -33,9 +33,14 @@ flowchart TD
     F["<b>results_saved</b><br/>result: saved NAME.md"]
     G["<b>error_and_warning_logs</b><br/>Slack → #tars_logs"]
     H["<b>results_rejected</b><br/>result: not saved"]
+    I["<b>results_write_failed</b><br/>result: not saved, write failed"]
     A --> B --> C
-    C -->|true| D --> E --> F
-    C -->|false| G --> H
+    C -->|true| D --> E
+    E -->|ok| F
+    E -->|error| I
+    C -->|false| G
+    G -->|ok| H
+    G -->|error| H
     style C fill: #fff3cd, stroke: #e0a800
     style E fill: #d4edda, stroke: #28a745
     style G fill: #f8d7da, stroke: #dc3545
@@ -93,6 +98,7 @@ One field, either way. ⟦REVIEW⟧
 ```
 saved: oracle-server-address.md
 not saved: fact was empty or filename unusable
+not saved: write to disk failed
 ```
 
 Whatever the last node outputs is what the caller receives. Without a fixed shape the true branch would return file
@@ -110,8 +116,8 @@ Adds two computed fields, passes the original four through (**Include Other Inpu
 ---
 created: {{ $now.toISODate() }}
 source: inferred
-topic: {{ $json.topic }}
-summary: {{ $json.summary }}
+topic: "{{ ($json.topic || '').replace(/[\r\n]+/g, ' ').replace(/"/g, "'") }}"
+summary: "{{ ($json.summary || '').replace(/[\r\n]+/g, ' ').replace(/"/g, "'") }}"
 ---
 
 {{ $json.fact }}
@@ -148,6 +154,7 @@ Combinator **AND**; both must pass. ⟦REVIEW⟧
 |---------------------------|--------------|--------------------------------------------------------------------------------------------------------------|
 | `{{ $json.fact.trim() }}` | is not empty | whitespace-only facts, which pass a plain empty check                                                        |
 | `{{ $json.safeName }}`    | is not empty | a `filename` that sanitises to nothing, which would write a file named `.md` — hidden from `ls` and Obsidian |
+| `{{ $json.safeName.replace(/-/g, '') }}` | is not empty | punctuation-only input such as `../../`, which sanitises to `------` and would otherwise pass |
 
 ### `convert_to_binary` — Convert to File
 
@@ -201,9 +208,14 @@ node. ⟦REVIEW src: Slack documentation, verifying requests from Slack⟧
 
 ## What this does not cover
 
+Write failures **are** handled: `write_to_obsidian` runs with **On Error → Continue (using error output)**, and that
+output reaches `results_write_failed`. Slack does the same, so a notification failure cannot stop `results_rejected`
+from returning. ⟦REVIEW src: workflow `memory_write`, `onError: continueErrorOutput` on both nodes⟧
+
+Still open:
+
 | Gap                       | Why it matters                                                                                                                                   |
 |---------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
-| Write failures            | `If` validates input; a disk error happens after the branch. Needs the node's error output or a workflow-level handler. ⟦REVIEW⟧                 |
 | Duplicate filenames       | Saving the same `filename` twice overwrites the earlier file with no warning. ⟦REVIEW⟧                                                           |
 | Stale facts               | Nothing detects a saved fact that stopped being true. The `created` field exists so this can be spotted by hand. ⟦REVIEW⟧                        |
 | Reading memory back       | That is `memory_read`, not yet built. ⟦REVIEW⟧                                                                                                   |

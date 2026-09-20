@@ -153,7 +153,9 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
   variables. Relevant if a workflow needs to shell out or watch a folder. ⟦REVIEW src: n8n 2.x release notes, breaking
   changes⟧
 - **The port is bound to `127.0.0.1`.** Removing that prefix exposes n8n to every device on the local network; doing so
-  also requires `N8N_SECURE_COOKIE=false` for login to work over a non-localhost address. ⟦REVIEW src:
+  also requires a TLS reverse proxy in front of n8n. `N8N_SECURE_COOKIE=false` makes login work over plain HTTP,
+  but it strips the Secure attribute from the auth cookie, so the session token travels in clear text and any
+  device on the network can read it. Use it only for throwaway local testing — never as the way to expose n8n. ⟦REVIEW src:
   docker-compose.yml, ports: "127.0.0.1:5678:5678"⟧
 
 ## Current state

@@ -1,11 +1,3 @@
----
-generated_by: claude
-human_requestor: swapnil.bhattacharya@clearroute.io
-date: 2026-09-14
-review_status: unreviewed
-reviewed_by:
----
-
 # Test Workflows
 
 Learning scaffolds, not production automation. The switches here control nothing real — `backup_enabled` gates a
@@ -175,7 +167,7 @@ Same question, same tools, varying configuration: ⟦REVIEW src: workflow execut
 | qwen3:8b, thinking **off**, no system prompt           | badly wrong      | 13s        |
 | qwen3:8b, thinking off + proper tools + system prompt  | **correct**      | 20s        |
 
-**The model mattered least. Tool design and instructions mattered most.** Three changes moved it from unreliable to
+**Configuration materially affected the qwen3 results.** Three changes moved qwen3:8b from unreliable to
 correct: ⟦REVIEW⟧
 
 1. **Tool parameters marked AI-fillable** (the sparkle icon). Without them a tool is a fixed button the agent cannot
@@ -188,7 +180,9 @@ correct: ⟦REVIEW⟧
 Settings that matter for local models: **Enable Thinking off**, **Sampling Temperature 0.1**. Tool calls are structured
 JSON, and a default chat temperature encourages the variation that breaks parsing. ⟦REVIEW⟧
 
-Three of those five rows failed on configuration, not on the model. When an agent misbehaves, suspect the tool
+These rows do not isolate model from configuration — the qwen3 rows vary configuration within one model, while
+the llama3.1 and Gemini rows vary the model against the same broken tool. Read them as evidence that configuration
+matters, not as a ranking of model against configuration. When an agent misbehaves, suspect the tool
 definitions and system prompt first. ⟦REVIEW⟧
 
 ---
