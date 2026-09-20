@@ -268,7 +268,7 @@ Recording these so they do not get relitigated. ⟦REVIEW⟧
 
 1. Create `memory/briefing/` and `memory/learned/`.
 2. Add both mounts to `docker-compose.yml`; `docker compose up -d`.
-3. Add `memory/learned/` to the vault `.gitignore`.
+3. Leave `memory/` **out** of the vault `.gitignore`. Both folders are tracked deliberately; see Phase 0. ⟦REVIEW src: zeltrax_hub/.gitignore, memory/ section⟧
 4. Fix the stale "Current state" section of `CLAUDE.md` — four of its claims are contradicted by the files it describes. ⟦REVIEW src: graphify extraction over this repository, run this session⟧
 5. Build the Phase 1 write sub-workflow.
 
