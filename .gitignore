@@ -65,3 +65,11 @@ coverage/
 # =========================
 # graphify rebuilds this from the repo on demand. Same reasoning as build/.
 graphify-out/
+
+# =========================
+# Claude Code local settings
+# =========================
+# `graphify claude install` writes PreToolUse hooks here using an ABSOLUTE path
+# to the graphify binary, so the file only works on the machine that generated
+# it. Ignored rather than committed — re-create with `graphify claude install`.
+.claude/settings.json
