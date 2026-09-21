@@ -267,7 +267,7 @@
           "mode": "id"
         },
         "messageType": "block",
-        "blocksUi": "={\"attachments\":[{\"color\":\"#2eb886\",\"fallback\":\"memory saved\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\":floppy_disk:  *Memory saved*\"}},{\"type\":\"section\",\"fields\":[{\"type\":\"mrkdwn\",\"text\":\"*File*\\n`{{ $binary.obsData.fileName }}.md`\"},{\"type\":\"mrkdwn\",\"text\":\"*Topic*\\n`{{ $('arrange_fields').item.json.safeTopic }}`\"}]},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*Summary*\\n{{ JSON.stringify($('arrange_fields').item.json.summary).slice(1,-1) }}\"}},{\"type\":\"context\",\"elements\":[{\"type\":\"mrkdwn\",\"text\":\"`memory_write`  ·  `memory/learned/`  ·  <obsidian://open?vault=zeltrax_hub&file=memory/learned/{{ $binary.obsData.fileName }}|open in Obsidian>\"}]}]}]}",
+        "blocksUi": "={\"attachments\":[{\"color\":\"#2eb886\",\"fallback\":\"memory saved\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\":floppy_disk:  *Memory saved*\"}},{\"type\":\"section\",\"fields\":[{\"type\":\"mrkdwn\",\"text\":\"*File*\\n`{{ $binary.obsData.fileName }}.md`\"},{\"type\":\"mrkdwn\",\"text\":\"*Topic*\\n`{{ $('arrange_fields').item.json.safeTopic }}`\"}]},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*Summary*\\n{{ JSON.stringify($('arrange_fields').item.json.summary ?? '').slice(1,-1) }}\"}},{\"type\":\"context\",\"elements\":[{\"type\":\"mrkdwn\",\"text\":\"`memory_write`  ·  `memory/learned/`  ·  <obsidian://open?vault=zeltrax_hub&file=memory/learned/{{ $binary.obsData.fileName }}|open in Obsidian>\"}]}]}]}",
         "text": "=memory saved: {{ $('arrange_fields').item.json.safeName }}.md",
         "otherOptions": {
           "includeLinkToWorkflow": false
@@ -471,7 +471,7 @@
     "executionTimeout": 30,
     "availableInMCP": false
   },
-  "versionId": "42d9d292-6daf-4c7b-a74c-dd37afa32401",
+  "versionId": "8381f4ed-c5d8-44f8-98e8-1f10cd1b45e5",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"
