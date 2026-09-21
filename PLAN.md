@@ -188,7 +188,7 @@ Manus, OpenClaw and Claude Code are reported to use the filesystem as their memo
 
 The `created` field supplies the date. Nothing yet supplies the revalidation prompt. That gap becomes **Phase 1.5**. ⟦REVIEW⟧
 
-**A second warning, relevant to the Stage 2 design below:** once storage and search are separate systems they can disagree, and a stale index that returns a memory the file already corrected is worse than no memory at all. Any summary index must therefore be **generated on write, never hand-maintained**. ⟦REVIEW src: DEV Community, "The Markdown File That Beat a $50M Vector Database", read 2026-09-21⟧
+**A second warning, relevant to the Stage 2 design below:** once storage and search are separate systems they can disagree, and a stale index that returns a memory the file already corrected is worse than no memory at all. Any summary index must therefore be **generated, never hand-maintained** — and generated on **create, update and delete**, not only on write. This design deletes stale facts rather than superseding them, so deletion is a first-class operation: an index refreshed only on write would keep returning files that no longer exist, and would keep an obsolete summary for a file edited in place. Either regenerate after every mutation, or rebuild and validate the index before each read. ⟦REVIEW src: DEV Community, "The Markdown File That Beat a $50M Vector Database", read 2026-09-21⟧
 
 ---
 
@@ -260,7 +260,7 @@ Adopted because these are cheap now and painful to retrofit across hundreds of f
 
 - One fact per file. Never one growing log.
 - Descriptive filename — the folder listing becomes a table of contents.
-- Frontmatter: `created`, `source` (`stated` vs `inferred`), `topic`, `summary`.
+- Frontmatter: `created`, `source` (`stated` vs `inferred`), `topic`, `summary`, and `reviewed` once Phase 1.5 exists — absent until a fact is first confirmed, and read as equal to `created` when missing.
 - Stale facts are **deleted**, not superseded in place. The `created` date is what keeps the store trustworthy at the
   one-year mark.
 
@@ -330,6 +330,13 @@ The revalidation prompt the markdown-memory pattern is documented as needing. �
 A scheduled workflow scans `memory/`, finds entries whose `created` date is older than a chosen threshold, and writes them to `dashboard/stale_memories.md` for review — or posts a digest to `#tars_logs`. Reuses the control-plane pattern already built and tested in `test_nodes_and_obsidian`. ⟦REVIEW src: docs/test_workflows.md, Section B⟧
 
 Nothing is deleted automatically. The workflow surfaces candidates; the human decides. ⟦REVIEW⟧
+
+**Review must persist an outcome, or the same entries resurface forever.** A memory kept because it is still true has an unchanged `created` date, so the next scan selects it again. Two acceptable rules: ⟦REVIEW⟧
+
+1. **Review is destructive.** Keeping a fact means deleting and re-saving it, which sets a fresh `created`. No new field; relies on discipline.
+2. **Review is recorded.** Add a `reviewed` date to the frontmatter, and have the scan select on `max(created, reviewed)` rather than `created`. Confirming a fact is then a one-field edit.
+
+**Option 2.** Option 1 makes the cheap action — confirming something is still true — the most destructive one. `reviewed` is absent until first use, so the scan must treat a missing value as equal to `created`. ⟦REVIEW⟧
 
 **Done when:** a memory older than the threshold appears in a review list without being asked for. ⟦REVIEW⟧
 

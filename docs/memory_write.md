@@ -113,7 +113,15 @@ metadata and the false branch a Slack API response — and the agent would repor
 
 ### `arrange_fields` — Edit Fields
 
-Adds two computed fields, passes the original four through (**Include Other Input Fields: ON**). ⟦REVIEW⟧
+Adds **three** computed fields — `markdown`, `safeName`, `safeTopic` — and passes the original four through (**Include Other Input Fields: ON**). ⟦REVIEW src: workflow `memory_write`, arrange_fields node⟧
+
+`topic` is **normalised, not validated**. The expression trims and lowercases the incoming value, accepts it only if it is one of `servers`, `personal`, `work`, `tools`, `general`, and maps anything else to `general`: ⟦REVIEW⟧
+
+```
+{{ ['servers','personal','work','tools','general'].includes(($json.topic || '').toLowerCase().trim()) ? ($json.topic || '').toLowerCase().trim() : 'general' }}
+```
+
+Normalising rather than rejecting is deliberate — a topic the model got wrong should not stop a real fact being saved. The same expression is inlined into the `markdown` field and also stored as `safeTopic`, because fields inside one Set node cannot reference each other; `safeTopic` exists for the Slack nodes, which read it from a different node. ⟦REVIEW⟧
 
 **`markdown`** — the file body:
 
