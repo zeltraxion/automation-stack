@@ -1,0 +1,205 @@
+{
+  "name": "tars_agent",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "1ce28895-f84c-45e6-bc3b-773543e28715",
+      "name": "When chat message received",
+      "webhookId": "350eb450-2c21-4bb9-a500-1a620d27bfd0"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are TARS, a personal assistant running locally.\n\nYou have a long-term memory. Use the save_memory tool ONLY when the user explicitly asks you to remember, note, or save something. Never save anything on your own initiative.\n\nAfter saving, confirm what you saved in one short sentence. The tool\nreturns either \"saved: ...\" or \"not saved: ...\". If it reports a failure,\nsay so plainly, never claim something was saved when the tool says\notherwise.\n\nKeep answers short and direct."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        288,
+        0
+      ],
+      "id": "e19bac2c-e0a7-4c32-ab73-f42e4f7caf1f",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "qwen3:8b",
+        "options": {
+          "think": false,
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        240,
+        240
+      ],
+      "id": "a5ad9192-12fa-4fbe-9257-2463358ef92e",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "OvtIrdEDVnmEzTO5",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        432,
+        224
+      ],
+      "id": "e4a12bc3-305c-484c-a203-882e43494416",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "description": "Saves one fact to long-term memory so it can be recalled in future conversations.\n\nCall this ONLY when the user explicitly asks you to remember something.\n\nParameters:\n\n- filename: short kebab-case id, lowercase letters and hyphens only, no file extension. Example: oracle-server-address\n- topic: exactly one of servers, personal, work, tools, general. Use general if none fit.\n- summary: one short line describing what the fact is about\n- fact: the complete fact, written as a full sentence",
+        "workflowId": {
+          "__rl": true,
+          "value": "z8kF1FdH9G7tt0SC",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/z8kF1FdH9G7tt0SC",
+          "cachedResultName": "memory_write"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "filename": "={{ $fromAI('filename', `short kebab-case id, lowercase letters and hyphens only, no extension, e.g. oracle-server-address`, 'string') }}",
+            "topic": "={{ $fromAI('topic', `exactly one of: servers, personal, work, tools, general. Pick general if none fit`, 'string') }}",
+            "summary": "={{ $fromAI('summary', `one short line describing what the fact is about`, 'string') }}",
+            "fact": "={{ $fromAI('fact', `the complete fact, written as a full sentence`, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "filename",
+              "displayName": "filename",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "topic",
+              "displayName": "topic",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fact",
+              "displayName": "fact",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        624,
+        208
+      ],
+      "id": "9202cb74-97dc-42f3-ae5e-405a15f876a0",
+      "name": "save_memory",
+      "notesInFlow": false
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "save_memory": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "a8caf6c3-85d9-4d03-94b1-e4471ef729fc",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"
+  },
+  "nodeGroups": [],
+  "id": "FZPoQYf8Hfgg0iuy",
+  "tags": []
+}
