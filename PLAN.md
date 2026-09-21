@@ -327,7 +327,7 @@ no-source-found: existence of a readWriteFileTool variant, searched n8n node ind
 
 The revalidation prompt the markdown-memory pattern is documented as needing. ⟦REVIEW src: §3.5⟧
 
-A scheduled workflow scans `memory/`, finds entries whose `created` date is older than a chosen threshold, and writes them to `dashboard/stale_memories.md` for review — or posts a digest to `#tars_logs`. Reuses the control-plane pattern already built and tested in `test_nodes_and_obsidian`. ⟦REVIEW src: docs/test_workflows.md, Section B⟧
+A scheduled workflow scans `memory/`, compares each entry's age threshold against **`max(created, reviewed)`** — treating a missing `reviewed` as equal to `created` — and writes anything older than the threshold to `dashboard/stale_memories.md` for review — or posts a digest to `#tars_logs`. Reuses the control-plane pattern already built and tested in `test_nodes_and_obsidian`. ⟦REVIEW src: docs/test_workflows.md, Section B⟧
 
 Nothing is deleted automatically. The workflow surfaces candidates; the human decides. ⟦REVIEW⟧
 

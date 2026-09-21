@@ -129,7 +129,7 @@ Normalising rather than rejecting is deliberate — a topic the model got wrong 
 ---
 created: {{ $now.toISODate() }}
 source: inferred
-topic: "{{ ($json.topic || '').replace(/[\r\n]+/g, ' ').replace(/"/g, "'") }}"
+topic: "{{ ['servers','personal','work','tools','general'].includes(($json.topic || '').toLowerCase().trim()) ? ($json.topic || '').toLowerCase().trim() : 'general' }}"
 summary: "{{ ($json.summary || '').replace(/[\r\n]+/g, ' ').replace(/"/g, "'") }}"
 ---
 
