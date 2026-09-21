@@ -24,7 +24,7 @@
       "typeVersion": 1.2,
       "position": [
         -80,
-        -32
+        -1552
       ],
       "id": "4729f054-e88c-4cb2-b7f6-9b835aadf188",
       "name": "When Executed by Another Workflow"
@@ -78,7 +78,7 @@
       "typeVersion": 2.3,
       "position": [
         368,
-        -32
+        -1552
       ],
       "id": "020f46a4-925c-43e9-aabe-858f23ca3764",
       "name": "If"
@@ -90,7 +90,7 @@
             {
               "id": "618b9f8d-2732-498e-8043-8a885a7d7f7b",
               "name": "result",
-              "value": "=saved: {{ $binary.obsData.fileName }}.md",
+              "value": "=saved: {{ $('arrange_fields').item.json.safeName }}.md{{ $json.error ? ' (log failed)' : '' }}",
               "type": "string"
             }
           ]
@@ -100,8 +100,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
-        1040,
-        -224
+        1264,
+        -1744
       ],
       "id": "1bdb23a2-3541-4de6-b164-4cf18e87fb21",
       "name": "results_saved"
@@ -113,13 +113,19 @@
             {
               "id": "3c2d1371-3461-4526-8406-362763e2d05c",
               "name": "markdown",
-              "value": "=---\ncreated: {{ $now.toISODate() }}\nsource: inferred\ntopic: \"{{ ($json.topic || '').replace(/[\\r\\n]+/g, ' ').replace(/\"/g, \"'\") }}\"\nsummary: \"{{ ($json.summary || '').replace(/[\\r\\n]+/g, ' ').replace(/\"/g, \"'\") }}\"\n---\n\n{{ $json.fact }}",
+              "value": "=---\ncreated: {{ $now.toISODate() }}\nsource: inferred\ntopic: \"{{ ['servers','personal','work','tools','general'].includes(($json.topic || '').toLowerCase().trim()) ? ($json.topic || '').toLowerCase().trim() : 'general' }}\"\nsummary: \"{{ ($json.summary || '').replace(/[\\r\\n]+/g, ' ').replace(/\"/g, \"'\") }}\"\n---\n\n{{ $json.fact }}",
               "type": "string"
             },
             {
               "id": "c2b7aecc-a42b-44be-842f-dda11ff8f614",
               "name": "safeName",
               "value": "={{ ($json.filename || '').replace(/[^a-z0-9-]/gi, '-').toLowerCase().slice(0, 60) }}",
+              "type": "string"
+            },
+            {
+              "id": "0fd58021-7015-4bf9-9ec8-520dc8fd64f3",
+              "name": "safeTopic",
+              "value": "={{ ['servers','personal','work','tools','general'].includes(($json.topic || '').toLowerCase().trim()) ? ($json.topic || '').toLowerCase().trim() : 'general' }}",
               "type": "string"
             }
           ]
@@ -131,7 +137,7 @@
       "typeVersion": 3.5,
       "position": [
         144,
-        -32
+        -1552
       ],
       "id": "fe4cce13-d978-41aa-84a4-da4ccc0505cb",
       "name": "arrange_fields"
@@ -149,7 +155,7 @@
       "typeVersion": 1.1,
       "position": [
         816,
-        -128
+        -1648
       ],
       "id": "0bc0a60c-fc08-4170-a99d-3aef8062959d",
       "name": "write_to_obsidian",
@@ -163,7 +169,9 @@
           "value": "C0AN74FTGA0",
           "mode": "id"
         },
-        "text": "=:warning: *[memory_write]* rejected\n> filename: {{ $('arrange_fields').item.json.filename }}\n> topic: {{ $('arrange_fields').item.json.topic }}\n> reason: empty fact or unusable filename",
+        "messageType": "block",
+        "blocksUi": "={\"attachments\":[{\"color\":\"#e0a800\",\"fallback\":\"memory rejected\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\":warning:  *Memory rejected*\"}},{\"type\":\"section\",\"fields\":[{\"type\":\"mrkdwn\",\"text\":\"*Filename sent*\\n`{{ JSON.stringify($('arrange_fields').item.json.filename || '-').slice(1,-1) }}`\"},{\"type\":\"mrkdwn\",\"text\":\"*Topic sent*\\n`{{ JSON.stringify($('arrange_fields').item.json.topic || '-').slice(1,-1) }}`\"}]},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*Reason*\\nNo usable filename, or no fact was provided\"}},{\"type\":\"context\",\"elements\":[{\"type\":\"mrkdwn\",\"text\":\"`memory_write`  ·  validation gate  ·  nothing was written\"}]}]}]}",
+        "text": "=memory rejected: no usable filename or fact",
         "otherOptions": {
           "includeLinkToWorkflow": false
         }
@@ -172,7 +180,7 @@
       "typeVersion": 2.7,
       "position": [
         592,
-        64
+        -1456
       ],
       "id": "8ed2b185-1150-4555-b7b4-ba770e6776f5",
       "name": "error_and_warning_logs",
@@ -199,7 +207,7 @@
       "typeVersion": 1.1,
       "position": [
         592,
-        -128
+        -1648
       ],
       "id": "0551e67f-293c-4b18-9d8c-60d19f2f0ff5",
       "name": "convert_to_binary"
@@ -211,7 +219,7 @@
             {
               "id": "9eb3e318-bd31-4a62-a2e2-f73eeaa9d069",
               "name": "result",
-              "value": "not saved: fact was empty or filename unusable",
+              "value": "=not saved: fact was empty or filename unusable{{ $json.error ? ' (log failed)' : '' }}",
               "type": "string"
             }
           ]
@@ -222,7 +230,7 @@
       "typeVersion": 3.5,
       "position": [
         816,
-        64
+        -1456
       ],
       "id": "0a663134-ecdb-4d30-be80-b7c348615274",
       "name": "results_rejected"
@@ -244,11 +252,76 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
-        1040,
-        -32
+        1264,
+        -1552
       ],
       "id": "972a1a85-5203-40ce-9648-89f9f62ce6f6",
       "name": "results_write_failed"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AN74FTGA0",
+          "mode": "id"
+        },
+        "messageType": "block",
+        "blocksUi": "={\"attachments\":[{\"color\":\"#2eb886\",\"fallback\":\"memory saved\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\":floppy_disk:  *Memory saved*\"}},{\"type\":\"section\",\"fields\":[{\"type\":\"mrkdwn\",\"text\":\"*File*\\n`{{ $binary.obsData.fileName }}.md`\"},{\"type\":\"mrkdwn\",\"text\":\"*Topic*\\n`{{ $('arrange_fields').item.json.safeTopic }}`\"}]},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*Summary*\\n{{ JSON.stringify($('arrange_fields').item.json.summary).slice(1,-1) }}\"}},{\"type\":\"context\",\"elements\":[{\"type\":\"mrkdwn\",\"text\":\"`memory_write`  ·  `memory/learned/`  ·  <obsidian://open?vault=zeltrax_hub&file=memory/learned/{{ $binary.obsData.fileName }}|open in Obsidian>\"}]}]}]}",
+        "text": "=memory saved: {{ $('arrange_fields').item.json.safeName }}.md",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        1040,
+        -1744
+      ],
+      "id": "83e69faa-8b40-4d11-acda-44a5c5dcdb14",
+      "name": "success_logs",
+      "webhookId": "0e1f6602-43d3-4eec-9051-da8a8ad1527c",
+      "credentials": {
+        "slackApi": {
+          "id": "Evd3eBEncrme7O5O",
+          "name": "Slack account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0C32VB38H4",
+          "mode": "id"
+        },
+        "messageType": "block",
+        "blocksUi": "={\"attachments\":[{\"color\":\"#dc3545\",\"fallback\":\"write failed\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\":rotating_light:  *Write failed*\"}},{\"type\":\"section\",\"fields\":[{\"type\":\"mrkdwn\",\"text\":\"*File*\\n`{{ $('arrange_fields').item.json.safeName }}.md`\"},{\"type\":\"mrkdwn\",\"text\":\"*Path*\\n`/vault/memory/learned/`\"}]},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*Error*\\n{{ JSON.stringify($json.error).slice(1,-1) }}\"}},{\"type\":\"context\",\"elements\":[{\"type\":\"mrkdwn\",\"text\":\"`memory_write`  ·  disk write  ·  the fact was NOT saved\"}]}]}]}",
+        "text": "=write failed: {{ $('arrange_fields').item.json.safeName }}.md",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        1040,
+        -1552
+      ],
+      "id": "2ccd0cc4-4fdd-4c9b-8dd8-702637fca7ef",
+      "name": "error_logs",
+      "webhookId": "59f3e64c-4961-4bbc-a213-a7a963fafbd7",
+      "notesInFlow": false,
+      "credentials": {
+        "slackApi": {
+          "id": "Evd3eBEncrme7O5O",
+          "name": "Slack account"
+        }
+      },
+      "onError": "continueErrorOutput"
     }
   ],
   "pinData": {
@@ -309,14 +382,14 @@
       "main": [
         [
           {
-            "node": "results_saved",
+            "node": "success_logs",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "results_write_failed",
+            "node": "error_logs",
             "type": "main",
             "index": 0
           }
@@ -351,14 +424,54 @@
           }
         ]
       ]
+    },
+    "success_logs": {
+      "main": [
+        [
+          {
+            "node": "results_saved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "results_saved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "error_logs": {
+      "main": [
+        [
+          {
+            "node": "results_write_failed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "results_write_failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
   "settings": {
     "executionOrder": "v1",
-    "binaryMode": "separate"
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 30,
+    "availableInMCP": false
   },
-  "versionId": "5edd66a1-7b91-4d83-8ddd-18ac399a40b0",
+  "versionId": "42d9d292-6daf-4c7b-a74c-dd37afa32401",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"
