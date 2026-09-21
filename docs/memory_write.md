@@ -217,6 +217,6 @@ Still open:
 | Gap                       | Why it matters                                                                                                                                   |
 |---------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
 | Duplicate filenames       | Saving the same `filename` twice overwrites the earlier file with no warning. ⟦REVIEW⟧                                                           |
-| Stale facts               | Nothing detects a saved fact that stopped being true. The `created` field exists so this can be spotted by hand. ⟦REVIEW⟧                        |
+| Stale facts               | Nothing detects a saved fact that stopped being true — the documented cost of markdown-file memory. The `created` field is the date half of the fix; the revalidation half is Phase 1.5 in `PLAN.md`. ⟦REVIEW src: PLAN.md §3.5 and Phase 1.5⟧ |
 | Reading memory back       | That is `memory_read`, not yet built. ⟦REVIEW⟧                                                                                                   |
 | Shared Slack notification | The Slack node is inline. At a third caller it should move to a `tars_notify` sub-workflow so channel IDs and format live in one place. ⟦REVIEW⟧ |
