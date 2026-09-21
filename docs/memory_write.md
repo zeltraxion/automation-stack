@@ -33,11 +33,16 @@ flowchart TD
     F["<b>results_saved</b><br/>result: saved NAME.md"]
     G["<b>error_and_warning_logs</b><br/>Slack → #tars_logs"]
     H["<b>results_rejected</b><br/>result: not saved"]
-    I["<b>results_write_failed</b><br/>result: not saved, write failed"]
+    I["<b>error_logs</b><br/>Slack → #tars_alerts"]
+    J["<b>results_write_failed</b><br/>result: not saved, write failed"]
     A --> B --> C
     C -->|true| D --> E
-    E -->|ok| F
+    E -->|ok| F2["<b>success_logs</b><br/>Slack → #tars_logs"]
+    F2 -->|ok| F
+    F2 -->|error| F
     E -->|error| I
+    I -->|ok| J
+    I -->|error| J
     C -->|false| G
     G -->|ok| H
     G -->|error| H
@@ -177,9 +182,25 @@ The name is read back from the binary rather than recomputed, so `convert_to_bin
 of truth. Trade-off: remove the **File Name** option there and this node silently writes `.md` again, with no error.
 ⟦REVIEW⟧
 
-### `error_and_warning_logs` — Slack
+### Slack logging — three nodes
 
-Posts to `#tars_logs` (`C0AN74FTGA0`) on the false branch. ⟦REVIEW src: workflow `memory_write`, Slack node, Channel By
+| Node | Colour | Channel | Fires when |
+|---|---|---|---|
+| `success_logs` | `#2eb886` green | `#tars_logs` | a file was written |
+| `error_and_warning_logs` | `#e0a800` amber | `#tars_logs` | validation rejected the input |
+| `error_logs` | `#dc3545` red | `#tars_alerts` | the disk write threw |
+
+Write failures go to `#tars_alerts` rather than `#tars_logs` — a failed write means the memory system is broken, not merely refusing bad input. That is the urgency split the two channels exist for. ⟦REVIEW⟧
+
+**Every Slack node runs with `onError: continueErrorOutput`, and both of its outputs land on the same result node.** So a Slack outage cannot stop the caller receiving a result. Logging must never be able to change the answer. ⟦REVIEW src: workflow `memory_write`, connections⟧
+
+`results_saved` and `results_rejected` append ` (log failed)` when `$json.error` is present, so a silent logging failure still surfaces in the agent's reply. Without that, a wrong channel ID fails invisibly — which happened once during development and was only caught by accident. ⟦REVIEW⟧
+
+**Message format uses an undocumented wrapper.** n8n's Blocks field states the payload must be `{ "blocks": [...] }`, but it also accepts `{ "attachments": [{ "color": ..., "blocks": [...] }] }`. That is the only way to get a coloured strip — Block Kit has no colour property, and n8n's own Attachments message type is flagged as legacy and cannot contain blocks. ⟦REVIEW src: n8n-mcp `get_node` for `nodes-base.slack`, blocksUi description; verified by execution 2026-09-21⟧
+
+Every model-supplied value inside the payload is wrapped in `JSON.stringify(...).slice(1, -1)`. A double quote in `summary` or `filename` would otherwise break the JSON and the node would fail to parse — the same class of problem as the YAML escaping above, different format. ⟦REVIEW⟧
+
+The rejection message reads: ⟦REVIEW src: workflow `memory_write`, Slack node, Channel By
 ID⟧
 
 ```
@@ -219,4 +240,4 @@ Still open:
 | Duplicate filenames       | Saving the same `filename` twice overwrites the earlier file with no warning. ⟦REVIEW⟧                                                           |
 | Stale facts               | Nothing detects a saved fact that stopped being true — the documented cost of markdown-file memory. The `created` field is the date half of the fix; the revalidation half is Phase 1.5 in `PLAN.md`. ⟦REVIEW src: PLAN.md §3.5 and Phase 1.5⟧ |
 | Reading memory back       | That is `memory_read`, not yet built. ⟦REVIEW⟧                                                                                                   |
-| Shared Slack notification | The Slack node is inline. At a third caller it should move to a `tars_notify` sub-workflow so channel IDs and format live in one place. ⟦REVIEW⟧ |
+| Shared Slack notification | Three Slack nodes now live inline in this workflow, each with its own channel ID and payload. The threshold for extracting a shared `tars_notify` sub-workflow has effectively been reached. ⟦REVIEW src: workflow `memory_write`, three Slack nodes⟧ |
