@@ -9,6 +9,7 @@ Detailed documentation for this repository. Start here. ⟦REVIEW⟧
 | [`../README.md`](../README.md)           | Setup, commands, architecture, roadmap                                 |
 | [`../PLAN.md`](../PLAN.md)               | Researched architecture decisions, measured constraints, phase order   |
 | [`../CLAUDE.md`](../CLAUDE.md)           | Operating guidance for Claude Code in this repo                        |
+| [`tars_agent.md`](tars_agent.md)         | The production assistant — model settings, system message, tool design |
 | [`memory_write.md`](memory_write.md)     | The memory-writing workflow — flow diagrams, design, security controls |
 | [`test_workflows.md`](test_workflows.md) | The two learning workflows, and measured agent-configuration results   |
 
@@ -18,7 +19,7 @@ Detailed documentation for this repository. Start here. ⟦REVIEW⟧
 
 New to the repository: `README.md` for how to run it, then `PLAN.md` for why it is shaped this way. ⟦REVIEW⟧
 
-Building or changing a workflow: `test_workflows.md` for the measured agent-configuration findings, then
+Working on the assistant itself: `tars_agent.md`. Building or changing a workflow: `test_workflows.md` for the measured agent-configuration findings, then
 `memory_write.md` as the worked example. ⟦REVIEW⟧
 
 ## Conventions

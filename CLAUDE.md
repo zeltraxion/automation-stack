@@ -165,7 +165,8 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
 - `VAULT_PATH` is referenced on **five lines** of `docker-compose.yml`. The vault is mounted: `control_plane` and
   `memory/briefing` read-only, `dashboard`, `files` and `memory/learned` writable. `notes/` is deliberately not mounted.
   ⟦REVIEW src: docker-compose.yml, volumes block⟧
-- `n8n_workflows/` holds three exports: `memory_write.json`, `test_chat_LLM.json`, `test_nodes_and_obsidian.json`.
+- `n8n_workflows/` holds four exports: `tars_agent.json`, `memory_write.json`, `test_chat_LLM.json`,
+  `test_nodes_and_obsidian.json`.
   ⟦REVIEW src: directory listing, 2026-09-20⟧
 - `custom-nodes/` and `.github/workflows/` exist but are empty. Git does not track empty directories, so they will not
   survive a clone without `.gitkeep` files. ⟦REVIEW src: directory listing, 2026-09-20⟧
@@ -174,11 +175,17 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
   match, 2026-09-20⟧
 - `README.md` is a full document — 201 lines. `docs/index.md` is populated and is the docs entry point. ⟦REVIEW src:
   `wc -lc README.md`, 2026-09-20⟧
-- **First production workflow is live:** `memory_write`, published, documented in `docs/memory_write.md`. ⟦REVIEW src:
+- **The assistant is live:** `tars_agent`, published, with `save_memory` wired to `memory_write` as its only tool.
+  Verified: it fills all four tool parameters correctly on an explicit request, and declines to call the tool
+  otherwise. Documented in `docs/tars_agent.md`. ⟦REVIEW src: workflow executions run 2026-09-21⟧
+- **First production sub-workflow is live:** `memory_write`, published, documented in `docs/memory_write.md`. ⟦REVIEW src:
   docs/memory_write.md; n8n_workflows/memory_write.json⟧
 - **Model in use: `qwen3:8b`.** `qwen3:14b` was tested and rejected on measurement — 12 GB resident, swap at 94%,
   load average 17.4. 24 GB of RAM is the threshold that reopens the 22–24B tier. See `PLAN.md` §4. ⟦REVIEW src: `ollama ps` output and btop reading, 2026-09-20⟧
-- Slack app **T.A.R.S** posts failures to `#tars_logs`. The credential is an access token stored in n8n, not in this
+- Slack app **T.A.R.S** posts colour-coded block messages: saves and rejections to `#tars_logs`, write failures to
+  `#tars_alerts`. n8n's Blocks field accepts an `{ "attachments": [...] }` wrapper despite documenting only
+  `{ "blocks": [...] }` — that is the only way to get a colour strip. ⟦REVIEW src: workflow `memory_write`, three Slack nodes⟧
+- Slack credential note: The credential is an access token stored in n8n, not in this
   repo. ⟦REVIEW src: docs/memory_write.md, Slack setup section⟧
 
 ⟦REVIEW⟧

@@ -165,6 +165,33 @@ Note that "multi-agent chaos" has the same remedy already chosen for the vault: 
 
 ---
 
+### 3.5 This design has prior art, and one known cost
+
+The markdown-files-as-memory pattern is not novel. Independent implementations of the same shape: ⟦REVIEW src: WebSearch across GitHub and DEV Community, run 2026-09-21⟧
+
+| Project | Shape |
+|---|---|
+| [`memspace`](https://github.com/meaurisch/memspace) | One markdown fact per file, generated indexes, reviewed in a pull request |
+| [`agents-memo`](https://github.com/misiekhardcore/agents-memo) | Markdown in an Obsidian vault, retrieved with grep — no embeddings, no vector index |
+| [`vaultmem`](https://github.com/jayantak/vaultmem) | Agent memory over an Obsidian vault, bash + ripgrep, no database |
+| [`obsidian-memory-for-ai`](https://github.com/jrcruciani/obsidian-memory-for-ai) | Persistent AI memory in Obsidian so the assistant knows you across sessions |
+
+Manus, OpenClaw and Claude Code are reported to use the filesystem as their memory layer in production. ⟦REVIEW src: DEV Community, "Multi-Agent Memory Without a Vector Database", read 2026-09-21⟧
+
+**Deferring the vector store is the documented recommendation, not just ours:** early-stage agents have a curation problem rather than a retrieval problem, and building retrieval before understanding access patterns builds the wrong thing quickly. ⟦REVIEW src: DEV Community, "Multi-Agent Memory Without a Vector Database", read 2026-09-21⟧
+
+**Tracking `memory/learned/` in git is validated by the same sources** — plain text means the agent's knowledge can be committed, reverted when it goes wrong, and branched. ⟦REVIEW src: DEV Community, "When Markdown Files Are All You Need", read 2026-09-21⟧
+
+**The one cost this approach carries.** Quoted, because it is the failure mode that would otherwise go unnoticed: ⟦REVIEW src: DEV Community, "The Markdown File That Beat a $50M Vector Database", read 2026-09-21⟧
+
+> A markdown file will happily outlive the truth it recorded [...] A memory that names a file, a flag or a workflow that no longer exists is actively harmful. Entries need a date **and something that prompts revalidation.**
+
+The `created` field supplies the date. Nothing yet supplies the revalidation prompt. That gap becomes **Phase 1.5**. ⟦REVIEW⟧
+
+**A second warning, relevant to the Stage 2 design below:** once storage and search are separate systems they can disagree, and a stale index that returns a memory the file already corrected is worse than no memory at all. Any summary index must therefore be **generated, never hand-maintained** — and generated on **create, update and delete**, not only on write. This design deletes stale facts rather than superseding them, so deletion is a first-class operation: an index refreshed only on write would keep returning files that no longer exist, and would keep an obsolete summary for a file edited in place. Either regenerate after every mutation, or rebuild and validate the index before each read. ⟦REVIEW src: DEV Community, "The Markdown File That Beat a $50M Vector Database", read 2026-09-21⟧
+
+---
+
 ## 4. Architecture decision
 
 Given §3.3, the shape is: ⟦REVIEW⟧
@@ -233,7 +260,7 @@ Adopted because these are cheap now and painful to retrofit across hundreds of f
 
 - One fact per file. Never one growing log.
 - Descriptive filename — the folder listing becomes a table of contents.
-- Frontmatter: `created`, `source` (`stated` vs `inferred`), `topic`, `summary`.
+- Frontmatter: `created`, `source` (`stated` vs `inferred`), `topic`, `summary`, and `reviewed` once Phase 1.5 exists — absent until a fact is first confirmed, and read as equal to `created` when missing.
 - Stale facts are **deleted**, not superseded in place. The `created` date is what keeps the store trustworthy at the
   one-year mark.
 
@@ -266,6 +293,22 @@ docker-compose.yml, environment block⟧
 
 ### Phase 1 — Memory read and write, no database
 
+**Order matters here.** Wire `memory_write` to the agent *before* building `memory_read`. It is one node — a Call n8n Workflow Tool — and it tests the largest untested assumption in the project: whether `qwen3:8b` can reliably fill four tool parameters. If it cannot, the four-field design needs rethinking, and that is worth discovering after one node rather than after two more workflows. ⟦REVIEW⟧
+
+**`memory_read` takes zero parameters. This is deliberate.** Research on Qwen function calling shows the failure mode is malformed *arguments*, not wrong tool selection — one harness moved Qwen models from a 6.75% first-try success rate to 99.8% by making invalid values structurally impossible rather than by prompt tuning. ⟦REVIEW src: typia.io, "Function Calling Harness: From 6.75% to 100%", read 2026-09-21⟧ A tool with no parameters has no arguments to malform. ⟦REVIEW⟧
+
+A search or topic parameter is specifically rejected: at this corpus size a filter can only lose information, and a filter that misses is indistinguishable from an empty memory store — the agent would confidently report knowing nothing. Returning everything moves the filtering into the model's reading comprehension, which is the task it is good at. ⟦REVIEW⟧
+
+The narrowing path, when volume demands it: ⟦REVIEW⟧
+
+| Stage | Files | Shape |
+|---|---|---|
+| 1 — now | 0–30 | `memory_read`, zero parameters, returns everything |
+| 2 | 30–100 | `list_memories` (no parameters) returns a **generated** index of filenames and summaries; `get_memory(name)` takes a filename the model just read — copying a value, not inventing one |
+| 3 | 100+ | Embeddings and a vector store; matching by meaning rather than keyword, so "server" finds "Oracle box" |
+
+Stage 2 is why every memory file carries a `summary` field from day one. ⟦REVIEW⟧
+
 - Sub-workflow: write one memory file to `memory/learned/`, using `n8n-nodes-base.readWriteFile`, operation "Write File
   to Disk". ⟦REVIEW src: n8n-mcp `search_nodes`, query "read write files disk", run this session⟧
 - Sub-workflow: read all files from `memory/` and return their contents.
@@ -279,6 +322,23 @@ sub-workflow called via the Call n8n Workflow Tool. To be confirmed against the 
 no-source-found: existence of a readWriteFileTool variant, searched n8n node index via n8n-mcp⟧
 
 **Done when:** I state a fact in chat, and the assistant recalls it in a new conversation the next day. ⟦REVIEW⟧
+
+### Phase 1.5 — Surface stale memories
+
+The revalidation prompt the markdown-memory pattern is documented as needing. ⟦REVIEW src: §3.5⟧
+
+A scheduled workflow scans `memory/`, compares each entry's age threshold against **`max(created, reviewed)`** — treating a missing `reviewed` as equal to `created` — and writes anything older than the threshold to `dashboard/stale_memories.md` for review — or posts a digest to `#tars_logs`. Reuses the control-plane pattern already built and tested in `test_nodes_and_obsidian`. ⟦REVIEW src: docs/test_workflows.md, Section B⟧
+
+Nothing is deleted automatically. The workflow surfaces candidates; the human decides. ⟦REVIEW⟧
+
+**Review must persist an outcome, or the same entries resurface forever.** A memory kept because it is still true has an unchanged `created` date, so the next scan selects it again. Two acceptable rules: ⟦REVIEW⟧
+
+1. **Review is destructive.** Keeping a fact means deleting and re-saving it, which sets a fresh `created`. No new field; relies on discipline.
+2. **Review is recorded.** Add a `reviewed` date to the frontmatter, and have the scan select on `max(created, reviewed)` rather than `created`. Confirming a fact is then a one-field edit.
+
+**Option 2.** Option 1 makes the cheap action — confirming something is still true — the most destructive one. `reviewed` is absent until first use, so the scan must treat a missing value as equal to `created`. ⟦REVIEW⟧
+
+**Done when:** a memory older than the threshold appears in a review list without being asked for. ⟦REVIEW⟧
 
 ### Phase 2 — Obsidian as a first-class surface
 
@@ -400,13 +460,11 @@ Recording these so they do not get relitigated. ⟦REVIEW⟧
 
 ## 8. Immediate next actions
 
-1. Create `memory/briefing/` and `memory/learned/`.
-2. Add both mounts to `docker-compose.yml`; `docker compose up -d`.
-3. Leave `memory/` **out** of the vault `.gitignore`. Both folders are tracked deliberately; see Phase 0. ⟦REVIEW src:
-   zeltrax_hub/.gitignore, memory/ section⟧
-4. Fix the stale "Current state" section of `CLAUDE.md` — four of its claims are contradicted by the files it describes.
-   ⟦REVIEW src: graphify extraction over this repository, run this session⟧
-5. Build the Phase 1 write sub-workflow.
+1. ~~Wire `memory_write` into the agent.~~ **Done, and the assumption held.** Built as a new workflow, `tars_agent`, rather than bolting production tools onto the `test_chat_LLM` scaffold. `qwen3:8b` filled all four tool parameters correctly on an explicit request, and declined to call the tool on an unrelated question. Published guidance places the comfortable tool-calling tier at 22B and above, so this was not a given — the four-field design stands. See `docs/tars_agent.md`. ⟦REVIEW src: workflow executions run 2026-09-21⟧
+2. **Build `memory_read`** — four nodes, zero parameters. *Next action.* Build and test the **empty-folder** case first: a node producing zero items causes every node after it to be skipped, so the tool would return nothing silently. `Always Output Data` on the read node is the guard. ⟦REVIEW⟧
+3. Wire `memory_read` to the agent.
+4. Test the full loop across a container restart — state a fact, restart, ask for it back.
+5. Phase 1.5 — surface stale memories.
 
 ⟦REVIEW⟧
 
@@ -423,6 +481,15 @@ Recording these so they do not get relitigated. ⟦REVIEW⟧
 - [n8n Community — Tool calling chain with local Ollama models (7b/14b)](https://community.n8n.io/t/tool-calling-chain-with-local-ollama-models-7b-14b-2nd-tool-never-executed/280320)
 - [Local LLM Tool Calling (2026): Reliable Function Calls, GBNF Grammars & Fixes](https://llmconfigurator.com/en/guides/coding-agents/tool-calling-local-models)
 - [Ollama FAQ — model loading and memory](https://docs.ollama.com/faq)
+- [memspace — one markdown fact per file](https://github.com/meaurisch/memspace)
+- [agents-memo — markdown memory in an Obsidian vault, grep retrieval](https://github.com/misiekhardcore/agents-memo)
+- [vaultmem — agent memory over an Obsidian vault, no database](https://github.com/jayantak/vaultmem)
+- [obsidian-memory-for-ai](https://github.com/jrcruciani/obsidian-memory-for-ai)
+- [Multi-Agent Memory Without a Vector Database](https://dev.to/whoffagents/multi-agent-memory-without-a-vector-database-the-markdown-first-approach-2lo0)
+- [AI Agent Memory Management — When Markdown Files Are All You Need](https://dev.to/imaginex/ai-agent-memory-management-when-markdown-files-are-all-you-need-5ekk)
+- [The Markdown File That Beat a $50M Vector Database](https://dev.to/codingsimba/the-markdown-file-that-beat-a-50m-vector-database-separating-storage-and-search-in-agent-memory-3d14)
+- [Function Calling Harness: From 6.75% to 100%](https://typia.io/blog/function-calling-harness-qwen-meetup-korea/)
+- [Qwen function calling documentation](https://qwen.readthedocs.io/en/latest/framework/function_call.html)
 - [Run Multiple Ollama Models: Parallelism and Memory Tuning](https://eastondev.com/blog/en/posts/ai/20260406-ollama-multi-model-deployment/)
 - [Best Ollama Models for n8n AI Agents (2026 Guide)](https://www.iloveblogs.blog/guides/n8n-ai-agent-workflows-ollama)
 - [Best Ollama Model for Tool Calling Agent 2026: Comparison & Benchmarks](https://webscraft.org/blog/yaku-model-ollama-obrati-dlya-agenta-z-tool-calling-porivnyannya-i-benchmarki?lang=en)
