@@ -453,8 +453,8 @@ Recording these so they do not get relitigated. ⟦REVIEW⟧
 
 ## 8. Immediate next actions
 
-1. **Wire `memory_write` into `test_chat_LLM`** — one Call n8n Workflow Tool node. Tests whether `qwen3:8b` reliably fills four tool parameters, which is the largest untested assumption in the project. ⟦REVIEW⟧
-2. Build `memory_read` — four nodes, zero parameters. Build and test the **empty-folder** case first: a node producing zero items causes every node after it to be skipped, so the tool would return nothing silently. `Always Output Data` on the read node is the guard. ⟦REVIEW⟧
+1. ~~Wire `memory_write` into the agent.~~ **Done, and the assumption held.** Built as a new workflow, `tars_agent`, rather than bolting production tools onto the `test_chat_LLM` scaffold. `qwen3:8b` filled all four tool parameters correctly on an explicit request, and declined to call the tool on an unrelated question. Published guidance places the comfortable tool-calling tier at 22B and above, so this was not a given — the four-field design stands. See `docs/tars_agent.md`. ⟦REVIEW src: workflow executions run 2026-09-21⟧
+2. **Build `memory_read`** — four nodes, zero parameters. *Next action.* Build and test the **empty-folder** case first: a node producing zero items causes every node after it to be skipped, so the tool would return nothing silently. `Always Output Data` on the read node is the guard. ⟦REVIEW⟧
 3. Wire `memory_read` to the agent.
 4. Test the full loop across a container restart — state a fact, restart, ask for it back.
 5. Phase 1.5 — surface stale memories.
