@@ -8,7 +8,7 @@
       "type": "@n8n/n8n-nodes-langchain.chatTrigger",
       "typeVersion": 1.4,
       "position": [
-        0,
+        240,
         0
       ],
       "id": "1ce28895-f84c-45e6-bc3b-773543e28715",
@@ -18,13 +18,13 @@
     {
       "parameters": {
         "options": {
-          "systemMessage": "You are TARS, a personal assistant running locally.\n\nYou have a long-term memory. Use the save_memory tool ONLY when the user explicitly asks you to remember, note, or save something. Never save anything on your own initiative.\n\nAfter saving, confirm what you saved in one short sentence. The tool\nreturns either \"saved: ...\" or \"not saved: ...\". If it reports a failure,\nsay so plainly, never claim something was saved when the tool says\notherwise.\n\nKeep answers short and direct."
+          "systemMessage": "You are TARS, a personal assistant running locally.\n\nYou can save facts with the save_memory tool, but you cannot read them back yet, saved facts are not retrievable until memory_read is connected. Never claim to recall something you saved earlier. Use save_memory ONLY when the user explicitly asks you to remember, note, or save something. Never save anything on your own initiative.\n\nAfter saving, confirm what you saved in one short sentence. The tool returns either \"saved: ...\" or \"not saved: ...\". If it reports a failure, say so plainly, never claim something was saved when the tool says\notherwise.\n\nKeep answers short and direct."
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        288,
+        528,
         0
       ],
       "id": "e19bac2c-e0a7-4c32-ab73-f42e4f7caf1f",
@@ -41,7 +41,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
       "typeVersion": 1,
       "position": [
-        240,
+        480,
         240
       ],
       "id": "a5ad9192-12fa-4fbe-9257-2463358ef92e",
@@ -60,8 +60,8 @@
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.4,
       "position": [
-        432,
-        224
+        608,
+        240
       ],
       "id": "e4a12bc3-305c-484c-a203-882e43494416",
       "name": "Simple Memory"
@@ -134,8 +134,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2.2,
       "position": [
-        624,
-        208
+        736,
+        240
       ],
       "id": "9202cb74-97dc-42f3-ae5e-405a15f876a0",
       "name": "save_memory",
@@ -194,7 +194,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "a8caf6c3-85d9-4d03-94b1-e4471ef729fc",
+  "versionId": "4598cb7a-0ff5-4154-93c0-e77b7aeaba7d",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"
