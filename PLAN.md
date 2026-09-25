@@ -484,6 +484,14 @@ Recording these so they do not get relitigated. ⟦REVIEW⟧
 3. ~~Wire `memory_read` to the agent.~~ **Done.** `recall_memory`, no parameters, alongside `save_memory`.
 4. ~~Test the full loop across a container restart~~ **Done and passing** — a fact stated before `docker compose restart` is recalled after it. ⟦REVIEW src: manual test 2026-09-24⟧
 5. **Phase 1.5 — surface stale memories.** *Next action.* Now load-bearing rather than optional: updating a memory is about 80% reliable when the user's wording differs from the stored summary, and the other 20% leaves a stale near-duplicate on disk. The scan is what catches those. ⟦REVIEW src: repeated manual testing 2026-09-24⟧
+
+   **Scope extended to cross-folder contradictions.** `briefing/` holds facts you wrote; `learned/` holds facts the agent saved. Nothing syncs between them and nothing should — the `:ro` mount on `briefing/` is what stops a model that misidentifies the target file one time in five from overwriting your own notes. But the agent can learn something in `learned/` that contradicts what you wrote in `briefing/`, and today nothing tells you. ⟦REVIEW⟧
+
+   Build it deterministic first, with no model at all: a scheduled workflow reads `/vault/memory/**/*.md`, groups by the closed `topic` set, and flags every topic holding entries in **both** folders where the `learned/` entry is newer. That alone catches the case worth catching, with no false positives from model reasoning. Write the list to `dashboard/stale_memories.md` and post an amber Slack card only when it is non-empty. ⟦REVIEW⟧
+
+   A model pass is the second step, and only on pairs the deterministic stage already flagged — never the whole corpus. One pair per call, closed output set (`CONTRADICTS` / `CONSISTENT`) plus one line of explanation. That is the shape `qwen3:8b` handles well, and a nightly batch has no user waiting on it, so a wrong answer lands in a review file rather than in an answer you act on. ⟦REVIEW src: PLAN.md §3.3⟧
+
+   Two rules from the start: **never auto-edit and never auto-delete** — the output is a report, and `briefing/` being `:ro` enforces half of that for free. And compare against `max(created, reviewed)` so a pair you have checked and stamped stops reappearing every night. ⟦REVIEW⟧
 6. Phase 3 — replace the chat trigger with Slack.
 
 ⟦REVIEW⟧

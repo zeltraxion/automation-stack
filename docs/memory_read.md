@@ -34,24 +34,28 @@ flowchart TD
     B["<b>read_memory_files</b><br/>/vault/memory/**/*.md"]
     C{"<b>If</b><br/>fileName present?"}
     D["<b>extract_text</b><br/>binary → json.content"]
-    E["<b>join_memories</b><br/>N items → 1 block of text"]
+    E["<b>join_memories</b><br/>N items → 1 block · counts sentinels"]
+    M{"<b>mount_ok</b><br/>both sentinels seen?"}
     F["<b>success_logs</b><br/>Slack → #tars_logs"]
     G["<b>results_memories</b><br/>result: the memory text"]
-    H["<b>error_warning_logs</b><br/>Slack → #tars_logs"]
-    I["<b>results_empty</b><br/>result: no memories saved yet"]
+    H["<b>error_logs</b><br/>Slack → #tars_alerts"]
+    I["<b>results_read_failed</b><br/>result: memory unavailable"]
     A --> B --> C
-    C -->|true| D --> E --> F
+    C -->|true| D --> E --> M
+    M -->|true| F
     F -->|ok| G
     F -->|error| G
     C -->|false| H
+    M -->|false| H
     H -->|ok| I
     H -->|error| I
     style C fill: #fff3cd, stroke: #e0a800
+    style M fill: #fff3cd, stroke: #e0a800
     style E fill: #d4edda, stroke: #28a745
     style H fill: #f8d7da, stroke: #dc3545
 ```
 
-⟦REVIEW src: workflow `memory_read` canvas, read 2026-09-24⟧
+⟦REVIEW src: workflow `memory_read` canvas, read 2026-09-25⟧
 
 Both branches end in a node returning a single `result` string, so the agent gets the same shape whichever path runs.
 ⟦REVIEW⟧
@@ -74,39 +78,62 @@ The agent does not distinguish them, and should not — a fact is a fact regardl
 
 `*.md` rather than `*` keeps `.DS_Store` out of the result. ⟦REVIEW⟧
 
+### Mount sentinels
+
+Each folder carries one file that must always be present: ⟦REVIEW src: vault listing, 2026-09-25⟧
+
+```
+memory/briefing/_mount_check_briefing.md
+memory/learned/_mount_check_learned.md
+```
+
+They exist so a **broken mount** can be told from an **empty memory store**. Without them the two are
+indistinguishable — a failed bind mount, a wrong `VAULT_PATH`, or Docker silently creating an empty directory all
+produce zero matches, exactly like a folder with nothing in it. The agent would then report that nothing is saved
+while every memory sits safe on the host. ⟦REVIEW⟧
+
+n8n has no way to ask whether a directory exists. The file node only globs, the Code node is sandboxed with no `fs`,
+and `ExecuteCommand` is disabled by default in n8n 2.x. A file that must always match is the available substitute.
+⟦REVIEW src: CLAUDE.md, Gotchas⟧
+
+**One per mount, with different names.** `briefing` and `learned` are separate bind mounts and fail independently.
+A single sentinel only proves its own folder is alive: with one in `briefing/` alone, losing that mount went unnoticed
+because `learned/` still returned files. Distinct names stop either folder satisfying the other's check. ⟦REVIEW src:
+docker-compose.yml, volumes block⟧
+
+The agent cannot clobber the writable one. `memory_write` sanitises filenames with `replace(/[^a-z0-9-]/gi, '-')`, so
+a leading underscore is structurally unreachable no matter what the model asks for — the same control that blocks path
+traversal, doing a second job. ⟦REVIEW src: docs/memory_write.md, arrange_fields⟧
+
 ## Output
 
 One field, `result`, in every case: ⟦REVIEW src: workflow `memory_read`, results_memories and results_empty⟧
 
-| Case              | `result`                                                          |
-|-------------------|-------------------------------------------------------------------|
-| files found       | each file as `### filename.md` followed by its full content        |
-| nothing saved yet | `no memories saved yet`                                            |
-| read failed       | `memory unavailable: read failed`                                  |
+| Case                        | `result`                                                    |
+|-----------------------------|-------------------------------------------------------------|
+| files found                 | each file as `### filename.md` followed by its full content  |
+| both mounts alive, nothing saved | `no memories saved yet`                                |
+| a mount is missing          | `memory unavailable: read failed`                            |
 
 The last two are different facts and must not be conflated. "Nothing is saved" and "your memories cannot be reached"
 lead the agent to opposite behaviour: the first is a normal state to report, the second means it should stop saving
 until reads work again — saving blind means it cannot check for an existing filename, so it invents one. ⟦REVIEW src:
 workflow `tars_agent`, system message⟧
 
-`results_empty` tells them apart by the error message rather than by a branch: ⟦REVIEW src: workflow `memory_read`,
-results_empty⟧
+The split is decided in two places. `join_memories` records which sentinels it saw and sets `mountOk`; the `mount_ok`
+node routes on it. Reaching `results_read_failed` therefore has exactly one meaning — a mount is gone — so the node
+returns a fixed string: ⟦REVIEW src: workflow `memory_read`, results_read_failed⟧
 
 ```
-{{ ($('read_memory_files').first().json.error ?? 'No file(s) found') === 'No file(s) found'
-     ? 'no memories saved yet'
-     : 'memory unavailable: read failed' }}
+memory unavailable: read failed{{ $json.error ? ' (log failed)' : '' }}
 ```
 
-`No file(s) found` is the one message that means empty; every other error means unreachable. The `??` makes a missing
-error read as empty rather than broken, since a false "unreachable" would stop the agent saving. It reaches back to
-`read_memory_files` by name because `$json` at this node is **Slack's** response, not the read node's. ⟦REVIEW⟧
+`$json.error` here is **Slack's** error, not the read node's — the item arrives from `error_logs`. It appends
+`(log failed)` so a silent logging failure still surfaces in the reply. ⟦REVIEW⟧
 
-This replaces a dedicated red-alert branch, which was built and then removed — a branch that cannot be triggered cannot
-be verified either. The expression carries the same information with no node and no wiring. ⟦REVIEW⟧
-
-**Known weakness:** it matches an exact string. If an n8n upgrade rewords `No file(s) found`, an empty store starts
-reporting as unreachable. The node exposes no error code, only text. ⟦REVIEW⟧
+An earlier version inferred the failure from the error text instead, matching the exact string `No file(s) found`.
+That was replaced because inference cannot see a *partial* failure: one folder unmounted while the other still returns
+files produces no error at all. Counting sentinels is a check rather than a guess. ⟦REVIEW⟧
 
 Frontmatter is passed through rather than stripped. `topic` and `summary` are free context for the model, and `created`
 is what lets it prefer the newer of two contradictory memories. ⟦REVIEW⟧
@@ -142,9 +169,10 @@ That single measured fact shapes the whole workflow. Two consequences: ⟦REVIEW
   Slack cards, and the workflow's return value became a coin flip between "empty" and "unreachable". Routing everything
   down one exit removes the ambiguity. ⟦REVIEW src: execution with both branches lit, 2026-09-24⟧
 
-An empty folder and a path outside `/vault` produce the *same* message, because n8n reports both as zero matches. They
-are therefore not distinguishable, and the workflow does not pretend otherwise. ⟦REVIEW src: selectors
-`/vault/memory/nope/**/*.md` and `/etc/**/*.md`, both returning `No file(s) found`⟧
+An empty folder and a path outside `/vault` produce the *same* message, because n8n reports both as zero matches.
+⟦REVIEW src: selectors `/vault/memory/nope/**/*.md` and `/etc/**/*.md`, both returning `No file(s) found`⟧ The error
+text is therefore not a reliable way to tell "empty" from "broken" — which is why the mount sentinels exist and why
+this branch now means only one thing. ⟦REVIEW⟧
 
 ### `If` — found or not
 
@@ -177,30 +205,69 @@ Many items in, one item out. `Run Once for Each Item` cannot merge anything, bec
 at a time. ⟦REVIEW⟧
 
 ```js
-const names = [];
-const parts = [];
+const names = []; // Filenames for Slack, never see memory contents
+const parts = []; // Part the Agent reads
+const seen = new Set(); // Which mount sentinels turned up
 
+// Loop every file item
 for (const item of $input.all()) {
+  /**
+   * Get filename
+   * ?? Supplies placeholder if really absent
+   * Fact with no label -> still worth keeping
+   */
   const name = item.json.fileName ?? 'unknown.md';
+
+  // Plumbing, not a memory. One per mount, both must appear.
+  if (name.startsWith('_mount_check')) { seen.add(name); continue; }
+
+  /**
+   * Get text extract_text produced
+   * ?? '' since can't trim() undefined
+   */
   const body = (item.json.content ?? '').trim();
+
+  // Skip empty files, or else model treats it as fact went missing
   if (!body) continue;
-  names.push(name);
-  parts.push(`### ${name}\n${body}`);
+  names.push(name); // Filename for Slack
+
+  // ### tells model where one file ends and next begins
+  parts.push(`### ${name}\n${body}`); // Get's passed to the Agent
 }
 
+/**
+ * Both mounts must prove themselves. A missing sentinel means that
+ * folder is not mounted, even when the other folder still returns files.
+ */
+const mountOk = seen.has('_mount_check_briefing.md')
+             && seen.has('_mount_check_learned.md');
+
+/**
+ * N8N always speaks in arrays of items, values always under JSON
+ * parts.join() -> glue blocks with blank line between
+ * parts.length ? -> covers an empty store, and files that exist but are blank
+ * count and files -> For Slack only, Names only
+ */
 return [{
   json: {
     memories: parts.length ? parts.join('\n\n') : 'no memories saved yet',
     count: names.length,
-    files: names.join(', ')
+    files: names.join(', '),
+    mountOk
   }
 }];
 ```
 
 ⟦REVIEW src: workflow `memory_read`, join_memories node⟧
 
-Two baskets rather than one, because they go to different places: `parts` is what the agent reads, `names` is what
-Slack shows. Memory contents are never logged. ⟦REVIEW⟧
+Three baskets, each going somewhere different: `parts` is what the agent reads, `names` is what Slack shows, and
+`seen` records which mount sentinels turned up. Memory contents are never logged. ⟦REVIEW⟧
+
+`if (name.startsWith('_mount_check'))` records the sentinel and skips it, so it never reaches the agent as a fact. It
+sits **before** the blank-body check, so an empty sentinel file still registers. ⟦REVIEW⟧
+
+`mountOk` requires **both** sentinels — `&&`, not `||`. Either folder missing means that mount is gone, even when the
+other still returns files. That asymmetric case is the one an error-text check could not see. ⟦REVIEW⟧
 
 `if (!body) continue` skips blank files. A heading with nothing under it reads to the model like a fact that went
 missing, and models fill gaps by guessing. ⟦REVIEW⟧
@@ -236,5 +303,6 @@ channel is a leak. ⟦REVIEW⟧
 |------------------------------------------|------------------------------------------------------------------------------------|
 | No filtering — every file, every call    | Deliberate below ~30 files; `PLAN.md` Phase 1 has the staged narrowing ⟦REVIEW⟧     |
 | Stale duplicates are not detected        | `PLAN.md` Phase 1.5 — scheduled scan into `dashboard/stale_memories.md` ⟦REVIEW⟧    |
-| An unreadable *path* still looks like an empty store | n8n reports both as `No file(s) found`, so a blocked directory cannot be told from an empty one. A genuine read *failure* returns a different message and is reported as unavailable ⟦REVIEW src: selectors `/vault/memory/nope/**/*.md` and `/etc/**/*.md`, both returning `No file(s) found`⟧ |
+| A folder inside a live mount could be deleted unnoticed | The sentinels prove each *mount*. A subfolder removed from a mounted vault produces no error and no missing sentinel ⟦REVIEW⟧ |
+| Contradictions between `briefing/` and `learned/` are not detected | `PLAN.md` Phase 1.5 — a scheduled cross-folder scan into `dashboard/stale_memories.md` ⟦REVIEW src: PLAN.md Phase 1.5⟧ |
 | Context cost grows with file count       | At 16,384 tokens, watch it past ~30 files ⟦REVIEW src: CLAUDE.md, Gotchas⟧          |

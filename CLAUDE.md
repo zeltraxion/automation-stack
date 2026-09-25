@@ -189,6 +189,12 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
   `{ "error": "No file(s) found" }`. Two consequences: `Always Output Data` is pointless on it, and combining that
   toggle with `onError: continueErrorOutput` lights **both** branches on one failed run. Use
   `continueRegularOutput` and branch on the item instead. ⟦REVIEW src: measured in `memory_read`, 2026-09-24⟧
+- **Mount sentinels.** `memory/briefing/_mount_check_briefing.md` and `memory/learned/_mount_check_learned.md` must
+  always exist. `memory_read` counts them and refuses to report an empty memory store unless both are present —
+  without them a broken bind mount is indistinguishable from an empty folder, and the agent would say nothing is
+  saved while every memory sits safe on the host. One per mount because the two fail independently. n8n cannot test
+  for a directory: the file node only globs, the Code node has no `fs`, and `ExecuteCommand` is disabled in 2.x.
+  ⟦REVIEW src: workflow `memory_read`, join_memories and mount_ok⟧
 - **Model in use: `qwen3:8b`.** `qwen3:14b` was tested and rejected on measurement — 12 GB resident, swap at 94%,
   load average 17.4. 24 GB of RAM is the threshold that reopens the 22–24B tier. See `PLAN.md` §4. ⟦REVIEW src: `ollama ps` output and btop reading, 2026-09-20⟧
 - Slack app **T.A.R.S** posts colour-coded block messages: saves and rejections to `#tars_logs`, write failures to

@@ -8,15 +8,15 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.2,
       "position": [
-        -720,
-        208
+        -704,
+        112
       ],
       "id": "a6b0ba06-83a7-4a2f-aaf7-dc9212ed4053",
       "name": "When Executed by Another Workflow"
     },
     {
       "parameters": {
-        "fileSelector": "/vault/memory/**/*.md",
+        "fileSelector": "/vault/memory/nope/**/*.md",
         "options": {
           "dataPropertyName": "data"
         }
@@ -24,8 +24,8 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1.1,
       "position": [
-        -496,
-        208
+        -480,
+        112
       ],
       "id": "2d77885a-36c3-4e7c-a760-4e48f964ee80",
       "name": "read_memory_files",
@@ -43,21 +43,21 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1.1,
       "position": [
-        -48,
-        112
+        -32,
+        32
       ],
       "id": "69d64d57-4532-44dc-b5cf-ce1e477a9f39",
       "name": "extract_text"
     },
     {
       "parameters": {
-        "jsCode": "const names = []; // Filenames for Slack, never see memory contents\nconst parts = []; // Part the Agent reads\n\n// Loop every file item\nfor (const item of $input.all()) {\n  /**\n   * Get filename \n   * ? Avoid crash if binary missing\n   * ?? Supplies placeholder if really absent\n   * Fact with no label -> still worth keeping\n   */\n  const name = item.json.fileName ?? 'unknown.md';\n\n  /**\n   * Get text extract_text produced\n   * ?? '' since can't trim() undefined\n   */\n  const body = (item.json.content ?? '').trim();\n\n  // Skip empty files, or else model treats it as fact went missing\n  if (!body) continue;\n  names.push(name); // Filename for Slack\n\n  // ### tells model where one file ends and next begins\n  parts.push(`### ${name}\\n${body}`); // Get's passed to the Agent\n}\n\n/**\n * N8N always speaks in arrays of items, values always under JSON\n * parts.json() -> glue blocks with blank line between\n * parts.length ? -> covers files that exists, but all blank\n * count and files -> For Slack only, Names only\n */\nreturn [{\n  json: {\n    memories: parts.length ? parts.join('\\n\\n') : 'no memories saved yet',\n    count: names.length,\n    files: names.join(', ')\n  }\n}];"
+        "jsCode": "const names = []; // Filenames for Slack, never see memory contents\nconst parts = []; // Part the Agent reads\nconst seen = new Set(); // Which mount sentinels turned up\n\n// Loop every file item\nfor (const item of $input.all()) {\n  /**\n   * Get filename\n   * ?? Supplies placeholder if really absent\n   * Fact with no label -> still worth keeping\n   */\n  const name = item.json.fileName ?? 'unknown.md';\n\n  // Plumbing, not a memory. One per mount, both must appear.\n  if (name.startsWith('_mount_check')) { seen.add(name); continue; }\n\n  /**\n   * Get text extract_text produced\n   * ?? '' since can't trim() undefined\n   */\n  const body = (item.json.content ?? '').trim();\n\n  // Skip empty files, or else model treats it as fact went missing\n  if (!body) continue;\n  names.push(name); // Filename for Slack\n\n  // ### tells model where one file ends and next begins\n  parts.push(`### ${name}\\n${body}`); // Get's passed to the Agent\n}\n\n/**\n * Both mounts must prove themselves. A missing sentinel means that\n * folder is not mounted, even when the other folder still returns files.\n */\nconst mountOk = seen.has('_mount_check_briefing.md')\n             && seen.has('_mount_check_learned.md');\n\n/**\n * N8N always speaks in arrays of items, values always under JSON\n * parts.join() -> glue blocks with blank line between\n * parts.length ? -> covers an empty store, and files that exist but are blank\n * count and files -> For Slack only, Names only\n */\nreturn [{\n  json: {\n    memories: parts.length ? parts.join('\\n\\n') : 'no memories saved yet',\n    count: names.length,\n    files: names.join(', '),\n    mountOk\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        176,
-        112
+        192,
+        32
       ],
       "id": "91820d9f-384b-4042-b36a-0f5887316af6",
       "name": "join_memories"
@@ -80,8 +80,8 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
       "position": [
-        400,
-        112
+        640,
+        -16
       ],
       "id": "e78631f2-93e5-46de-8692-332fe04255f9",
       "name": "success_logs",
@@ -111,34 +111,11 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
-        624,
-        112
+        864,
+        -16
       ],
       "id": "1266057c-2a8c-47a4-8c8d-e84b754506f0",
       "name": "results_memories"
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "c3000000-0000-4000-8000-000000000002",
-              "name": "result",
-              "value": "={{ ($('read_memory_files').first().json.error ?? 'No file(s) found') === 'No file(s) found' ? 'no memories saved yet' : 'memory unavailable: read failed' }}{{ $json.error ? ' (log failed)' : '' }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.5,
-      "position": [
-        176,
-        304
-      ],
-      "id": "1f355d7c-5607-4793-b3db-4bfc34e1d1c7",
-      "name": "results_empty"
     },
     {
       "parameters": {
@@ -168,23 +145,46 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -272,
-        208
+        -256,
+        112
       ],
       "id": "575edf66-4385-4814-8e05-50ae4828dda4",
       "name": "If"
     },
     {
       "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c3000000-0000-4000-8000-000000000002",
+              "name": "result",
+              "value": "=memory unavailable: read failed{{ $json.error ? ' (log failed)' : '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        864,
+        208
+      ],
+      "id": "1f355d7c-5607-4793-b3db-4bfc34e1d1c7",
+      "name": "results_read_failed"
+    },
+    {
+      "parameters": {
         "select": "channel",
         "channelId": {
           "__rl": true,
-          "value": "C0AN74FTGA0",
+          "value": "C0C32VB38H4",
           "mode": "id"
         },
         "messageType": "block",
-        "blocksUi": "={\"attachments\":[{\"color\":\"#e0a800\",\"fallback\":\"memory empty\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\":warning:  *Memory empty*\"}},{\"type\":\"section\",\"fields\":[{\"type\":\"mrkdwn\",\"text\":\"*Files*\\n`0`\"},{\"type\":\"mrkdwn\",\"text\":\"*Pattern*\\n`/vault/memory/**/*.md`\"}]},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*Reason*\\n`{{ JSON.stringify($json.error ?? 'unknown').slice(1,-1) }}`\"}},{\"type\":\"context\",\"elements\":[{\"type\":\"mrkdwn\",\"text\":\"`memory_read`  ·  empty result  ·  not a failure\"}]}]}]}",
-        "text": "=memory read: no files found",
+        "blocksUi": "={\"attachments\":[{\"color\":\"#dc3545\",\"fallback\":\"memory unreachable\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\":rotating_light:  *Memory unreachable*\"}},{\"type\":\"section\",\"fields\":[{\"type\":\"mrkdwn\",\"text\":\"*Files*\\n`0`\"},{\"type\":\"mrkdwn\",\"text\":\"*Pattern*\\n`/vault/memory/**/*.md`\"}]},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*Reason*\\n`{{ JSON.stringify($json.error ?? 'unknown').slice(1,-1) }}`\\nThe mount sentinel `_mount_check.md` was not found, so `/vault/memory` is not mounted.\"}},{\"type\":\"context\",\"elements\":[{\"type\":\"mrkdwn\",\"text\":\"`memory_read`  ·  the agent received NO memory  ·  check VAULT_PATH and the bind mounts\"}]}]}]}",
+        "text": "=memory unreachable: /vault/memory not mounted",
         "otherOptions": {
           "includeLinkToWorkflow": false
         }
@@ -192,11 +192,11 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
       "position": [
-        -48,
-        304
+        640,
+        208
       ],
       "id": "f5ff13d8-bded-4313-a53d-eb5bb21858fe",
-      "name": "error_warning_logs",
+      "name": "error_logs",
       "webhookId": "0891f6ea-f456-47ec-8250-c7a232ac37bc",
       "credentials": {
         "slackApi": {
@@ -205,6 +205,40 @@
         }
       },
       "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "81a4210c-827e-4590-b37c-8fbcb8977923",
+              "leftValue": "={{ $json.mountOk }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        416,
+        32
+      ],
+      "id": "3bd93f00-4f18-4ae4-bb5b-9c646055f09b",
+      "name": "mount_ok"
     }
   ],
   "pinData": {},
@@ -247,7 +281,7 @@
       "main": [
         [
           {
-            "node": "success_logs",
+            "node": "mount_ok",
             "type": "main",
             "index": 0
           }
@@ -283,25 +317,43 @@
         ],
         [
           {
-            "node": "error_warning_logs",
+            "node": "error_logs",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "error_warning_logs": {
+    "error_logs": {
       "main": [
         [
           {
-            "node": "results_empty",
+            "node": "results_read_failed",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "results_empty",
+            "node": "results_read_failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "mount_ok": {
+      "main": [
+        [
+          {
+            "node": "success_logs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error_logs",
             "type": "main",
             "index": 0
           }
@@ -318,7 +370,7 @@
     "executionTimeout": 30,
     "availableInMCP": false
   },
-  "versionId": "a62af45e-ee80-4f71-8ad0-a3b98d684af2",
+  "versionId": "13a2956c-b6e9-41af-91c0-d4ebb990f9ee",
   "meta": {
     "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"
   },

@@ -244,6 +244,10 @@ Mitigated rather than fixed: ⟦REVIEW⟧
 
 ## What this does not do yet
 
+`memory_read` refuses to report an empty store unless both mount sentinels are present, so `no memories saved yet`
+now means the store really is empty rather than unreachable. The agent can trust that string. ⟦REVIEW src:
+docs/memory_read.md, Mount sentinels⟧
+
 | Gap | Where it lands |
 |---|---|
 | Chat only in n8n's panel | Phase 3 replaces the trigger with Slack, once n8n is reachable from outside ⟦REVIEW src: PLAN.md Phase 3⟧ |
