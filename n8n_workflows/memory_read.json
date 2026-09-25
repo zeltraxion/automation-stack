@@ -124,7 +124,7 @@
             {
               "id": "c3000000-0000-4000-8000-000000000002",
               "name": "result",
-              "value": "=no memories saved yet{{ $json.error ? ' (log failed)' : '' }}",
+              "value": "={{ ($('read_memory_files').first().json.error ?? 'No file(s) found') === 'No file(s) found' ? 'no memories saved yet' : 'memory unavailable: read failed' }}{{ $json.error ? ' (log failed)' : '' }}",
               "type": "string"
             }
           ]
@@ -318,7 +318,7 @@
     "executionTimeout": 30,
     "availableInMCP": false
   },
-  "versionId": "decce3ca-e321-4300-bc10-38f9a0ff1101",
+  "versionId": "a62af45e-ee80-4f71-8ad0-a3b98d684af2",
   "meta": {
     "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"
   },

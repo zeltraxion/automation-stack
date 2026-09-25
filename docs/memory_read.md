@@ -81,7 +81,32 @@ One field, `result`, in every case: ⟦REVIEW src: workflow `memory_read`, resul
 | Case              | `result`                                                          |
 |-------------------|-------------------------------------------------------------------|
 | files found       | each file as `### filename.md` followed by its full content        |
-| nothing found     | `no memories saved yet`                                            |
+| nothing saved yet | `no memories saved yet`                                            |
+| read failed       | `memory unavailable: read failed`                                  |
+
+The last two are different facts and must not be conflated. "Nothing is saved" and "your memories cannot be reached"
+lead the agent to opposite behaviour: the first is a normal state to report, the second means it should stop saving
+until reads work again — saving blind means it cannot check for an existing filename, so it invents one. ⟦REVIEW src:
+workflow `tars_agent`, system message⟧
+
+`results_empty` tells them apart by the error message rather than by a branch: ⟦REVIEW src: workflow `memory_read`,
+results_empty⟧
+
+```
+{{ ($('read_memory_files').first().json.error ?? 'No file(s) found') === 'No file(s) found'
+     ? 'no memories saved yet'
+     : 'memory unavailable: read failed' }}
+```
+
+`No file(s) found` is the one message that means empty; every other error means unreachable. The `??` makes a missing
+error read as empty rather than broken, since a false "unreachable" would stop the agent saving. It reaches back to
+`read_memory_files` by name because `$json` at this node is **Slack's** response, not the read node's. ⟦REVIEW⟧
+
+This replaces a dedicated red-alert branch, which was built and then removed — a branch that cannot be triggered cannot
+be verified either. The expression carries the same information with no node and no wiring. ⟦REVIEW⟧
+
+**Known weakness:** it matches an exact string. If an n8n upgrade rewords `No file(s) found`, an empty store starts
+reporting as unreachable. The node exposes no error code, only text. ⟦REVIEW⟧
 
 Frontmatter is passed through rather than stripped. `topic` and `summary` are free context for the model, and `created`
 is what lets it prefer the newer of two contradictory memories. ⟦REVIEW⟧
@@ -211,5 +236,5 @@ channel is a leak. ⟦REVIEW⟧
 |------------------------------------------|------------------------------------------------------------------------------------|
 | No filtering — every file, every call    | Deliberate below ~30 files; `PLAN.md` Phase 1 has the staged narrowing ⟦REVIEW⟧     |
 | Stale duplicates are not detected        | `PLAN.md` Phase 1.5 — scheduled scan into `dashboard/stale_memories.md` ⟦REVIEW⟧    |
-| Read failures are indistinguishable from an empty store | n8n reports both as `No file(s) found`; the raw message is surfaced in Slack ⟦REVIEW⟧ |
+| An unreadable *path* still looks like an empty store | n8n reports both as `No file(s) found`, so a blocked directory cannot be told from an empty one. A genuine read *failure* returns a different message and is reported as unavailable ⟦REVIEW src: selectors `/vault/memory/nope/**/*.md` and `/etc/**/*.md`, both returning `No file(s) found`⟧ |
 | Context cost grows with file count       | At 16,384 tokens, watch it past ~30 files ⟦REVIEW src: CLAUDE.md, Gotchas⟧          |

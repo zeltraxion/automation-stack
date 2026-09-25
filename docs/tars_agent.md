@@ -101,9 +101,12 @@ save_memory twice, once per fact, before replying.
 
 Example:
 User: "remember my server is at 10.0.0.1, and that I work at Acme"
-You: call save_memory (filename: server-address, topic: servers,
+You: call recall_memory
+     then call save_memory (filename: server-address, topic: servers,
+     summary: address of the user's server,
      fact: the server is at 10.0.0.1)
      then call save_memory (filename: employer, topic: work,
+     summary: where the user works,
      fact: I work at Acme)
      then reply: "Saved both."
 
@@ -116,6 +119,10 @@ and which you did not.
 
 If recall_memory returns "no memories saved yet", say you have nothing saved.
 Never invent a fact that was not in the result.
+
+If recall_memory returns "memory unavailable: read failed", tell the user your
+memory could not be read. Do not say you have nothing saved, and do not save
+anything new until recall works again.
 
 Keep answers short and direct.
 ```
@@ -131,6 +138,10 @@ Five clauses are load-bearing, each added after a specific observed failure: ⟦
 **"write the complete fact, not just the change"** exists because the write is an overwrite, not a patch. Saving only "16GB" would replace the file and delete the IP address with it. ⟦REVIEW⟧
 
 **The worked two-call example** is the only thing that produced two tool calls in one turn. The rule *"call save_memory twice"* on its own did not — the model either dropped the second fact or merged both into one file under one topic. Rules describe the outcome; an example gives the shape. ⟦REVIEW src: three executions 2026-09-24 — drop, merge, then correct after the example was added⟧
+
+The example also carries a `summary` on each call and a leading `recall_memory`. Both were added in review, and the chain was re-tested afterwards because a longer example risks the model dropping a call: two saves still fired, with non-empty summaries and correct topics. ⟦REVIEW src: execution 2026-09-25 — `work-employer.md` and `desk-setup.md` in one turn⟧
+
+**The `memory unavailable: read failed` paragraph** covers the case where the memory files cannot be read at all. Without it the agent has no instruction for that string and improvises, most likely as "nothing is saved". The clause forbidding new saves while recall is down matters separately: with no filename list, the model cannot reuse an existing name, so a save during an outage is a guaranteed duplicate. ⟦REVIEW src: docs/memory_read.md, Output⟧
 
 **The failure-reporting paragraph** exists because `memory_write` returns three distinct outcomes, and a model with no instruction will say "saved!" regardless of which one came back. ⟦REVIEW src: docs/memory_write.md, Output section⟧
 
@@ -204,6 +215,8 @@ Against `qwen3:8b`: ⟦REVIEW src: workflow executions run 2026-09-21 and 2026-0
 | "can you tell me the list of servers I have?" | `recall_memory` | answered from the file |
 | "update it to 16GB, and remember I work at ClearRoute" | `save_memory` ×2 | `oracle-server-details.md` updated in place, `work-details.md` created |
 | same question after `docker compose restart` | `recall_memory` | still answered — files survived, Simple Memory did not |
+| "remember that I work at ClearRoute…, and remember that my desk setup is…" | `save_memory` ×2 | `work-employer.md` and `desk-setup.md`, both with non-empty summaries |
+| "**Note that** I work in clearroute…, also update this oracle server…" | `save_memory` ×1 | update applied, employment fact **dropped** — and the reply wrongly claimed both were saved |
 
 Two findings worth keeping. ⟦REVIEW⟧
 
@@ -218,6 +231,10 @@ A tool call costs two model invocations — one to choose, one to phrase the rep
 When the user's wording closely matches the stored summary, `recall_memory` → reuse-filename → overwrite works. When the wording differs — "bump the RAM on my cloud box" against a memory called `oracle-server-details` — roughly one attempt in five creates a near-duplicate file with correct content and leaves the older file in place. ⟦REVIEW src: repeated manual testing 2026-09-24⟧
 
 This is fuzzy subject matching, not a missing capability: `recall_memory` returns every filename, so the model has the information and misjudges it. Further prompt rules were tried and bought little. ⟦REVIEW⟧
+
+**A separate limit applies to the trigger phrase.** The explicit-only rule depends on the model judging what counts as explicit, and *"Note that I work at …"* reads as informing rather than instructing — it was not saved. *"remember that …"* and *"save this: …"* are reliable; *"note that"*, *"just so you know"* and *"by the way"* are not. Erring strict is deliberate: a missed save is repeatable, a store full of small talk is not easily cleaned. ⟦REVIEW src: executions 2026-09-25⟧
+
+**When a fact is dropped, the reply can still claim it was saved.** The clause instructing the agent to name what it did *not* save failed in that run — it appears to believe the second call was made. Nothing in the prompt reliably fixes this at 8B; the Slack log is the check, since it prints one card per actual write. ⟦REVIEW src: execution 2026-09-25, one `save_memory` call against a two-fact request⟧
 
 Mitigated rather than fixed: ⟦REVIEW⟧
 
