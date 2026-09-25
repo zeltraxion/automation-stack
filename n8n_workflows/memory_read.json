@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "fileSelector": "/vault/memory/nope/**/*.md",
+        "fileSelector": "/vault/memory/**/*.md",
         "options": {
           "dataPropertyName": "data"
         }
@@ -37,7 +37,7 @@
         "operation": "text",
         "destinationKey": "content",
         "options": {
-          "keepSource": "json"
+          "keepSource": "both"
         }
       },
       "type": "n8n-nodes-base.extractFromFile",
@@ -51,7 +51,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const names = []; // Filenames for Slack, never see memory contents\nconst parts = []; // Part the Agent reads\nconst seen = new Set(); // Which mount sentinels turned up\n\n// Loop every file item\nfor (const item of $input.all()) {\n  /**\n   * Get filename\n   * ?? Supplies placeholder if really absent\n   * Fact with no label -> still worth keeping\n   */\n  const name = item.json.fileName ?? 'unknown.md';\n\n  // Plumbing, not a memory. One per mount, both must appear.\n  if (name.startsWith('_mount_check')) { seen.add(name); continue; }\n\n  /**\n   * Get text extract_text produced\n   * ?? '' since can't trim() undefined\n   */\n  const body = (item.json.content ?? '').trim();\n\n  // Skip empty files, or else model treats it as fact went missing\n  if (!body) continue;\n  names.push(name); // Filename for Slack\n\n  // ### tells model where one file ends and next begins\n  parts.push(`### ${name}\\n${body}`); // Get's passed to the Agent\n}\n\n/**\n * Both mounts must prove themselves. A missing sentinel means that\n * folder is not mounted, even when the other folder still returns files.\n */\nconst mountOk = seen.has('_mount_check_briefing.md')\n             && seen.has('_mount_check_learned.md');\n\n/**\n * N8N always speaks in arrays of items, values always under JSON\n * parts.join() -> glue blocks with blank line between\n * parts.length ? -> covers an empty store, and files that exist but are blank\n * count and files -> For Slack only, Names only\n */\nreturn [{\n  json: {\n    memories: parts.length ? parts.join('\\n\\n') : 'no memories saved yet',\n    count: names.length,\n    files: names.join(', '),\n    mountOk\n  }\n}];"
+        "jsCode": "const names = []; // Filenames for Slack, never see memory contents\nconst parts = []; // Part the Agent reads\nconst seen = new Set(); // Which mount sentinels turned up\n\n// Loop every file item\nfor (const item of $input.all()) {\n  /**\n   * Get filename\n   * ?? Supplies placeholder if really absent\n   * Fact with no label -> still worth keeping\n   */\n  const name = item.json.fileName ?? 'unknown.md';\n\n  // Folder lives in binary, not JSON. Needs Keep source: Both\n  const dir = item.binary?.data?.directory ?? '';\n  \n  // Plumbing, not a memory. One per mount, both must appear.\n  if (name.startsWith('_mount_check')) {\n    seen.add(`${dir}/${name}`);\n    continue;\n  }\n\n  /**\n   * Get text extract_text produced\n   * ?? '' since can't trim() undefined\n   */\n  const body = (item.json.content ?? '').trim();\n\n  // Skip empty files, or else model treats it as fact went missing\n  if (!body) continue;\n  names.push(name); // Filename for Slack\n\n  // ### tells model where one file ends and next begins\n  parts.push(`### ${name}\\n${body}`); // Get's passed to the Agent\n}\n\n/**\n * Both mounts must prove themselves, each with its own sentinel in its own folder.\n * A missing sentinel means that folder is not mounted, even when the other folder still returns files.\n */\nconst mountOk = seen.has('/vault/memory/briefing/_mount_check_briefing.md') && seen.has('/vault/memory/learned/_mount_check_learned.md');\n\n/**\n * N8N always speaks in arrays of items, values always under JSON\n * parts.join() -> glue blocks with blank line between\n * parts.length ? -> covers an empty store, and files that exist but are blank\n * count and files -> For Slack only, Names only\n */\nreturn [{\n  json: {\n    memories: parts.length ? parts.join('\\n\\n') : 'no memories saved yet',\n    count: names.length,\n    files: names.join(', '),\n    mountOk\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -183,8 +183,8 @@
           "mode": "id"
         },
         "messageType": "block",
-        "blocksUi": "={\"attachments\":[{\"color\":\"#dc3545\",\"fallback\":\"memory unreachable\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\":rotating_light:  *Memory unreachable*\"}},{\"type\":\"section\",\"fields\":[{\"type\":\"mrkdwn\",\"text\":\"*Files*\\n`0`\"},{\"type\":\"mrkdwn\",\"text\":\"*Pattern*\\n`/vault/memory/**/*.md`\"}]},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*Reason*\\n`{{ JSON.stringify($json.error ?? 'unknown').slice(1,-1) }}`\\nThe mount sentinel `_mount_check.md` was not found, so `/vault/memory` is not mounted.\"}},{\"type\":\"context\",\"elements\":[{\"type\":\"mrkdwn\",\"text\":\"`memory_read`  ·  the agent received NO memory  ·  check VAULT_PATH and the bind mounts\"}]}]}]}",
-        "text": "=memory unreachable: /vault/memory not mounted",
+        "blocksUi": "={\"attachments\":[{\"color\":\"#dc3545\",\"fallback\":\"memory unreachable\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\":rotating_light:  *Memory unreachable*\"}},{\"type\":\"section\",\"fields\":[{\"type\":\"mrkdwn\",\"text\":\"*Cause*\\n{{ $json.error ? 'read error' : 'missing mount sentinel' }}\"},{\"type\":\"mrkdwn\",\"text\":\"*Pattern*\\n`/vault/memory/**/*.md`\"}]},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*Reason*\\n{{ $json.error ? 'Read failed: ' + JSON.stringify($json.error).slice(1,-1) : 'A mount sentinel was missing, so briefing/ or learned/ is not mounted.' }}\"}},{\"type\":\"context\",\"elements\":[{\"type\":\"mrkdwn\",\"text\":\"`memory_read`  ·  the agent received NO memory  ·  check VAULT_PATH and the bind mounts\"}]}]}]}",
+        "text": "=memory unreachable: {{ $json.error ? 'read error' : 'mount sentinel missing' }}",
         "otherOptions": {
           "includeLinkToWorkflow": false
         }
@@ -370,7 +370,7 @@
     "executionTimeout": 30,
     "availableInMCP": false
   },
-  "versionId": "13a2956c-b6e9-41af-91c0-d4ebb990f9ee",
+  "versionId": "f5c76e97-38a5-4871-8864-5287d78a1e67",
   "meta": {
     "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"
   },

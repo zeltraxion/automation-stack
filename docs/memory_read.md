@@ -101,6 +101,12 @@ A single sentinel only proves its own folder is alive: with one in `briefing/` a
 because `learned/` still returned files. Distinct names stop either folder satisfying the other's check. ⟦REVIEW src:
 docker-compose.yml, volumes block⟧
 
+**Matched by full path, not by filename.** The glob flattens both folders into one list, and `fileName` carries no
+folder with it. A stray copy of `_mount_check_briefing.md` sitting inside `learned/` would otherwise satisfy the
+briefing check while `briefing/` was unmounted — the check passing while the thing it checks is broken. `join_memories`
+records `${directory}/${name}`, so a sentinel only counts from its own mount. ⟦REVIEW src: workflow `memory_read`,
+join_memories⟧
+
 The agent cannot clobber the writable one. `memory_write` sanitises filenames with `replace(/[^a-z0-9-]/gi, '-')`, so
 a leading underscore is structurally unreachable no matter what the model asks for — the same control that blocks path
 traversal, doing a second job. ⟦REVIEW src: docs/memory_write.md, arrange_fields⟧
@@ -192,12 +198,19 @@ node⟧
 Operation:                 Extract From Text File
 Input Binary Field:        data
 Destination Output Field:  content
-Keep Source:               JSON
+Keep Source:               Both
 ```
 
-Adds `json.content` to the existing json. `Keep Source: JSON` drops the binary compartment, which nothing downstream
-needs — `fileName` is already in json. Carrying file bytes past this point would be dead weight on every item.
-⟦REVIEW src: workflow `memory_read`, extract_text node⟧
+Adds `json.content` to the existing json and keeps the binary compartment. ⟦REVIEW src: workflow `memory_read`,
+extract_text node⟧
+
+**`Both` is required for the mount check, not for the text.** `json` carries `fileName`, `mimeType`, `fileType`,
+`fileExtension` and `fileSize` — but **not the directory**. The folder a file came from exists only at
+`binary.data.directory`. Set this to `JSON` and `join_memories` can no longer tell which mount a sentinel came from.
+⟦REVIEW src: node output inspected 2026-09-25⟧
+
+This was briefly set to `JSON` on the grounds that carrying file bytes was dead weight. Measured, that is about 150
+bytes per memory file — roughly 4.5 KB at 30 files. Not a cost worth a weaker check. ⟦REVIEW⟧
 
 ### `join_memories` — Code, Run Once for All Items
 
@@ -218,8 +231,14 @@ for (const item of $input.all()) {
    */
   const name = item.json.fileName ?? 'unknown.md';
 
+  // Folder lives in binary, not JSON. Needs Keep source: Both
+  const dir = item.binary?.data?.directory ?? '';
+  
   // Plumbing, not a memory. One per mount, both must appear.
-  if (name.startsWith('_mount_check')) { seen.add(name); continue; }
+  if (name.startsWith('_mount_check')) {
+    seen.add(`${dir}/${name}`);
+    continue;
+  }
 
   /**
    * Get text extract_text produced
@@ -236,11 +255,10 @@ for (const item of $input.all()) {
 }
 
 /**
- * Both mounts must prove themselves. A missing sentinel means that
- * folder is not mounted, even when the other folder still returns files.
+ * Both mounts must prove themselves, each with its own sentinel in its own folder.
+ * A missing sentinel means that folder is not mounted, even when the other folder still returns files.
  */
-const mountOk = seen.has('_mount_check_briefing.md')
-             && seen.has('_mount_check_learned.md');
+const mountOk = seen.has('/vault/memory/briefing/_mount_check_briefing.md') && seen.has('/vault/memory/learned/_mount_check_learned.md');
 
 /**
  * N8N always speaks in arrays of items, values always under JSON
@@ -290,9 +308,24 @@ the same card instead of being described as "nothing saved yet". That is what re
 branch that could not be triggered could not be verified either. ⟦REVIEW src: workflow `memory_read`,
 error_warning_logs Blocks payload⟧
 
-Both nodes run `onError: continueErrorOutput` with **both outputs wired into the same result node**, so a Slack outage
-cannot stop the agent receiving its memories. Logging never changes the answer. ⟦REVIEW src: workflow `memory_read`,
-connections⟧
+**`error_logs` is reached by two different routes**, and the card says which: ⟦REVIEW src: workflow `memory_read`,
+error_logs Blocks payload⟧
+
+| Route | `$json` carries | Card reads |
+|---|---|---|
+| `If` false | `error` | `Cause: read error` + the raw message |
+| `mount_ok` false | `mountOk`, `count`, `files` | `Cause: missing mount sentinel` |
+
+A read error does not prove a mount is missing, so the card must not claim it does. The two are distinguished by
+whether `$json.error` is present. ⟦REVIEW⟧
+
+`results_read_failed` deliberately returns **one** string for both. The agent's correct response is identical either
+way — memory cannot be trusted, do not save anything new — so splitting the return value would add a distinction the
+model cannot act on. The detail belongs in Slack, where you can act on it. ⟦REVIEW⟧
+
+Both Slack nodes run `onError: continueErrorOutput` with **both outputs wired into the same result node**, so a Slack
+outage cannot stop the agent receiving its memories. Logging never changes the answer. ⟦REVIEW src: workflow
+`memory_read`, connections⟧
 
 `success_logs` reports `count` and `files` — how many and which names. Never the contents. Memory text in a Slack
 channel is a leak. ⟦REVIEW⟧
