@@ -1,0 +1,380 @@
+{
+  "name": "memory_read",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -704,
+        112
+      ],
+      "id": "a6b0ba06-83a7-4a2f-aaf7-dc9212ed4053",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/vault/memory/**/*.md",
+        "options": {
+          "dataPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        -480,
+        112
+      ],
+      "id": "2d77885a-36c3-4e7c-a760-4e48f964ee80",
+      "name": "read_memory_files",
+      "alwaysOutputData": false,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "destinationKey": "content",
+        "options": {
+          "keepSource": "both"
+        }
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -32,
+        32
+      ],
+      "id": "69d64d57-4532-44dc-b5cf-ce1e477a9f39",
+      "name": "extract_text"
+    },
+    {
+      "parameters": {
+        "jsCode": "const names = []; // Filenames for Slack, never see memory contents\nconst parts = []; // Part the Agent reads\nconst seen = new Set(); // Which mount sentinels turned up\n\n// Loop every file item\nfor (const item of $input.all()) {\n  /**\n   * Get filename\n   * ?? Supplies placeholder if really absent\n   * Fact with no label -> still worth keeping\n   */\n  const name = item.json.fileName ?? 'unknown.md';\n\n  // Folder lives in binary, not JSON. Needs Keep source: Both\n  const dir = item.binary?.data?.directory ?? '';\n  \n  // Plumbing, not a memory. One per mount, both must appear.\n  if (name.startsWith('_mount_check')) {\n    seen.add(`${dir}/${name}`);\n    continue;\n  }\n\n  /**\n   * Get text extract_text produced\n   * ?? '' since can't trim() undefined\n   */\n  const body = (item.json.content ?? '').trim();\n\n  // Skip empty files, or else model treats it as fact went missing\n  if (!body) continue;\n  names.push(name); // Filename for Slack\n\n  // ### tells model where one file ends and next begins\n  parts.push(`### ${name}\\n${body}`); // Get's passed to the Agent\n}\n\n/**\n * Both mounts must prove themselves, each with its own sentinel in its own folder.\n * A missing sentinel means that folder is not mounted, even when the other folder still returns files.\n */\nconst mountOk = seen.has('/vault/memory/briefing/_mount_check_briefing.md') && seen.has('/vault/memory/learned/_mount_check_learned.md');\n\n/**\n * N8N always speaks in arrays of items, values always under JSON\n * parts.join() -> glue blocks with blank line between\n * parts.length ? -> covers an empty store, and files that exist but are blank\n * count and files -> For Slack only, Names only\n */\nreturn [{\n  json: {\n    memories: parts.length ? parts.join('\\n\\n') : 'no memories saved yet',\n    count: names.length,\n    files: names.join(', '),\n    mountOk\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        32
+      ],
+      "id": "91820d9f-384b-4042-b36a-0f5887316af6",
+      "name": "join_memories"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AN74FTGA0",
+          "mode": "id"
+        },
+        "messageType": "block",
+        "blocksUi": "={\"attachments\":[{\"color\":\"#2eb886\",\"fallback\":\"memory read\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\":books:  *Memory read*\"}},{\"type\":\"section\",\"fields\":[{\"type\":\"mrkdwn\",\"text\":\"*Files*\\n`{{ $json.count }}`\"},{\"type\":\"mrkdwn\",\"text\":\"*Path*\\n`/vault/memory/`\"}]},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*Returned*\\n{{ JSON.stringify($json.files ?? '').slice(1,-1) }}\"}},{\"type\":\"context\",\"elements\":[{\"type\":\"mrkdwn\",\"text\":\"`memory_read`  ·  `briefing/` + `learned/`  ·  contents not logged\"}]}]}]}",
+        "text": "=memory read: {{ $json.count }} file(s)",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        640,
+        -16
+      ],
+      "id": "e78631f2-93e5-46de-8692-332fe04255f9",
+      "name": "success_logs",
+      "webhookId": "a53a5890-33e5-4c64-a363-1d2dded8518b",
+      "credentials": {
+        "slackApi": {
+          "id": "Evd3eBEncrme7O5O",
+          "name": "Slack account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c3000000-0000-4000-8000-000000000001",
+              "name": "result",
+              "value": "={{ $('join_memories').item.json.memories }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        864,
+        -16
+      ],
+      "id": "1266057c-2a8c-47a4-8c8d-e84b754506f0",
+      "name": "results_memories"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "212d6751-037b-4b92-a295-2e8f23a2b457",
+              "leftValue": "={{ $json.fileName !== undefined }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -256,
+        112
+      ],
+      "id": "575edf66-4385-4814-8e05-50ae4828dda4",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c3000000-0000-4000-8000-000000000002",
+              "name": "result",
+              "value": "=memory unavailable: read failed{{ $json.error ? ' (log failed)' : '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        864,
+        208
+      ],
+      "id": "1f355d7c-5607-4793-b3db-4bfc34e1d1c7",
+      "name": "results_read_failed"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0C32VB38H4",
+          "mode": "id"
+        },
+        "messageType": "block",
+        "blocksUi": "={\"attachments\":[{\"color\":\"#dc3545\",\"fallback\":\"memory unreachable\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\":rotating_light:  *Memory unreachable*\"}},{\"type\":\"section\",\"fields\":[{\"type\":\"mrkdwn\",\"text\":\"*Cause*\\n{{ $json.error ? 'read error' : 'missing mount sentinel' }}\"},{\"type\":\"mrkdwn\",\"text\":\"*Pattern*\\n`/vault/memory/**/*.md`\"}]},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*Reason*\\n{{ $json.error ? 'Read failed: ' + JSON.stringify($json.error).slice(1,-1) : 'A mount sentinel was missing, so briefing/ or learned/ is not mounted.' }}\"}},{\"type\":\"context\",\"elements\":[{\"type\":\"mrkdwn\",\"text\":\"`memory_read`  ·  the agent received NO memory  ·  check VAULT_PATH and the bind mounts\"}]}]}]}",
+        "text": "=memory unreachable: {{ $json.error ? 'read error' : 'mount sentinel missing' }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        640,
+        208
+      ],
+      "id": "f5ff13d8-bded-4313-a53d-eb5bb21858fe",
+      "name": "error_logs",
+      "webhookId": "0891f6ea-f456-47ec-8250-c7a232ac37bc",
+      "credentials": {
+        "slackApi": {
+          "id": "Evd3eBEncrme7O5O",
+          "name": "Slack account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "81a4210c-827e-4590-b37c-8fbcb8977923",
+              "leftValue": "={{ $json.mountOk }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        416,
+        32
+      ],
+      "id": "3bd93f00-4f18-4ae4-bb5b-9c646055f09b",
+      "name": "mount_ok"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "read_memory_files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "read_memory_files": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "extract_text": {
+      "main": [
+        [
+          {
+            "node": "join_memories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "join_memories": {
+      "main": [
+        [
+          {
+            "node": "mount_ok",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "success_logs": {
+      "main": [
+        [
+          {
+            "node": "results_memories",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "results_memories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "extract_text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error_logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "error_logs": {
+      "main": [
+        [
+          {
+            "node": "results_read_failed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "results_read_failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "mount_ok": {
+      "main": [
+        [
+          {
+            "node": "success_logs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error_logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 30,
+    "availableInMCP": false
+  },
+  "versionId": "f5c76e97-38a5-4871-8864-5287d78a1e67",
+  "meta": {
+    "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"
+  },
+  "nodeGroups": [],
+  "id": "OGngcVxRlQpjRZ0B",
+  "tags": []
+}

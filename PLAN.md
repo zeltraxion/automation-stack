@@ -120,6 +120,25 @@ should be split into focused agents with fewer tools. ⟦REVIEW src: n8n Blog, S
 Splitting work across narrow agents is therefore the remedy for small-model tool calling, not something blocked by it.
 ⟦REVIEW⟧
 
+**Measured against this repository, `qwen3:8b` does better than the published tier suggests.** It chained two
+`save_memory` calls in one turn, with correct filenames and topics on both — 738ms and 580ms inside a 20.6s run.
+⟦REVIEW src: `tars_agent` execution log, 2026-09-24⟧ That did **not** come from a rule. The instruction *"call
+save_memory twice, once per fact"* produced either a dropped fact or two facts merged into one file; a **worked
+example** in the system message produced two correct calls. For this model class, show the shape rather than describe
+the outcome. ⟦REVIEW src: three executions 2026-09-24⟧
+
+**Where it does still fall short is fuzzy matching, not chaining.** Deciding that "bump the RAM on my cloud box"
+refers to a memory filed as `oracle-server-details` succeeds about four times in five. The information is all present —
+`recall_memory` returns every filename — so this is judgement, and more prompt rules bought little. It is handled by
+making the failure harmless (date-aware conflict resolution) rather than impossible. ⟦REVIEW src: repeated manual
+testing 2026-09-24⟧
+
+**A router is still not needed.** The split that matters is by **domain**, never by operation: `save_memory` and
+`recall_memory` are one domain and belong to one agent, because a single message can need both — *"what's my server IP,
+and remember I upgraded the RAM"*. Splitting read from write would send that message down one branch and silently drop
+the other half. A router earns its two extra model round-trips when a second domain exists, and `Text Classifier`
+returns a category rather than prose to parse. ⟦REVIEW src: design review 2026-09-24⟧
+
 Published local stacks assign different models per role — for example a 1.5B classifier, a 7B reasoning agent, and a
 code-specialised model. ⟦REVIEW src: WebSearch summary of n8n multi-agent Ollama implementations, run this session⟧
 7B–8B models are reported to need 8–16 GB RAM and to suit classification, routing, and summarisation — precisely the
@@ -461,10 +480,19 @@ Recording these so they do not get relitigated. ⟦REVIEW⟧
 ## 8. Immediate next actions
 
 1. ~~Wire `memory_write` into the agent.~~ **Done, and the assumption held.** Built as a new workflow, `tars_agent`, rather than bolting production tools onto the `test_chat_LLM` scaffold. `qwen3:8b` filled all four tool parameters correctly on an explicit request, and declined to call the tool on an unrelated question. Published guidance places the comfortable tool-calling tier at 22B and above, so this was not a given — the four-field design stands. See `docs/tars_agent.md`. ⟦REVIEW src: workflow executions run 2026-09-21⟧
-2. **Build `memory_read`** — four nodes, zero parameters. *Next action.* Build and test the **empty-folder** case first: a node producing zero items causes every node after it to be skipped, so the tool would return nothing silently. `Always Output Data` on the read node is the guard. ⟦REVIEW⟧
-3. Wire `memory_read` to the agent.
-4. Test the full loop across a container restart — state a fact, restart, ask for it back.
-5. Phase 1.5 — surface stale memories.
+2. ~~**Build `memory_read`**~~ **Done — nine nodes, zero parameters.** The empty case turned out not to work as predicted: `Read/Write Files from Disk` never returns zero items, it returns `{ "error": "No file(s) found" }`, so `Always Output Data` guards nothing and combining it with `onError: continueErrorOutput` fires both branches at once. The node runs `continueRegularOutput` and an `If` branches on the item instead. See `docs/memory_read.md`. ⟦REVIEW src: measured 2026-09-24⟧
+3. ~~Wire `memory_read` to the agent.~~ **Done.** `recall_memory`, no parameters, alongside `save_memory`.
+4. ~~Test the full loop across a container restart~~ **Done and passing** — a fact stated before `docker compose restart` is recalled after it. ⟦REVIEW src: manual test 2026-09-24⟧
+5. **Phase 1.5 — surface stale memories.** *Next action.* Now load-bearing rather than optional: updating a memory is about 80% reliable when the user's wording differs from the stored summary, and the other 20% leaves a stale near-duplicate on disk. The scan is what catches those. ⟦REVIEW src: repeated manual testing 2026-09-24⟧
+
+   **Scope extended to cross-folder contradictions.** `briefing/` holds facts you wrote; `learned/` holds facts the agent saved. Nothing syncs between them and nothing should — the `:ro` mount on `briefing/` is what stops a model that misidentifies the target file one time in five from overwriting your own notes. But the agent can learn something in `learned/` that contradicts what you wrote in `briefing/`, and today nothing tells you. ⟦REVIEW⟧
+
+   Build it deterministic first, with no model at all: a scheduled workflow reads `/vault/memory/**/*.md`, groups by the closed `topic` set, and flags every topic holding entries in **both** folders where the `learned/` entry is newer. That alone catches the case worth catching, with no false positives from model reasoning. Write the list to `dashboard/stale_memories.md` and post an amber Slack card only when it is non-empty. ⟦REVIEW⟧
+
+   A model pass is the second step, and only on pairs the deterministic stage already flagged — never the whole corpus. One pair per call, closed output set (`CONTRADICTS` / `CONSISTENT`) plus one line of explanation. That is the shape `qwen3:8b` handles well, and a nightly batch has no user waiting on it, so a wrong answer lands in a review file rather than in an answer you act on. ⟦REVIEW src: PLAN.md §3.3⟧
+
+   Two rules from the start: **never auto-edit and never auto-delete** — the output is a report, and `briefing/` being `:ro` enforces half of that for free. And compare against `max(created, reviewed)` so a pair you have checked and stamped stops reappearing every night. ⟦REVIEW⟧
+6. Phase 3 — replace the chat trigger with Slack.
 
 ⟦REVIEW⟧
 

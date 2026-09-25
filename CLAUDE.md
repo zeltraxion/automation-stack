@@ -165,9 +165,9 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
 - `VAULT_PATH` is referenced on **five lines** of `docker-compose.yml`. The vault is mounted: `control_plane` and
   `memory/briefing` read-only, `dashboard`, `files` and `memory/learned` writable. `notes/` is deliberately not mounted.
   ⟦REVIEW src: docker-compose.yml, volumes block⟧
-- `n8n_workflows/` holds four exports: `tars_agent.json`, `memory_write.json`, `test_chat_LLM.json`,
-  `test_nodes_and_obsidian.json`.
-  ⟦REVIEW src: directory listing, 2026-09-20⟧
+- `n8n_workflows/` holds five exports: `tars_agent.json`, `memory_write.json`, `memory_read.json`,
+  `test_chat_LLM.json`, `test_nodes_and_obsidian.json`.
+  ⟦REVIEW src: directory listing, 2026-09-24⟧
 - `custom-nodes/` and `.github/workflows/` exist but are empty. Git does not track empty directories, so they will not
   survive a clone without `.gitkeep` files. ⟦REVIEW src: directory listing, 2026-09-20⟧
 - The environment template is `env.example`. `.gitignore` no longer carries a negation for `.env.example`, so the
@@ -175,11 +175,28 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
   match, 2026-09-20⟧
 - `README.md` is a full document — 201 lines. `docs/index.md` is populated and is the docs entry point. ⟦REVIEW src:
   `wc -lc README.md`, 2026-09-20⟧
-- **The assistant is live:** `tars_agent`, published, with `save_memory` wired to `memory_write` as its only tool.
-  Verified: it fills all four tool parameters correctly on an explicit request, and declines to call the tool
-  otherwise. Documented in `docs/tars_agent.md`. ⟦REVIEW src: workflow executions run 2026-09-21⟧
-- **First production sub-workflow is live:** `memory_write`, published, documented in `docs/memory_write.md`. ⟦REVIEW src:
-  docs/memory_write.md; n8n_workflows/memory_write.json⟧
+- **The memory loop is closed:** `tars_agent`, published, with two tools — `save_memory` → `memory_write` and
+  `recall_memory` → `memory_read`. Verified across a container restart: facts stated before the restart are recalled
+  after it. An 8B model chains two `save_memory` calls in one turn, which only worked once a **worked example** was put
+  in the system message — rules alone produced a dropped fact or two facts merged into one file. Documented in
+  `docs/tars_agent.md`. ⟦REVIEW src: workflow executions run 2026-09-24⟧
+- **Updating a memory is ~80% reliable** when the user's wording differs from the stored summary; the rest create a
+  near-duplicate and leave the old file stale. Mitigated by a date-aware conflict rule in the system message, resolved
+  manually until Phase 1.5. ⟦REVIEW src: repeated manual testing 2026-09-24⟧
+- **Both production sub-workflows are live:** `memory_write` and `memory_read`, published, documented in
+  `docs/memory_write.md` and `docs/memory_read.md`. ⟦REVIEW src: n8n_workflows/⟧
+- **`Read/Write Files from Disk` never returns zero items.** A pattern matching nothing is reported as
+  `{ "error": "No file(s) found" }`. Two consequences: `Always Output Data` is pointless on it, and combining that
+  toggle with `onError: continueErrorOutput` lights **both** branches on one failed run. Use
+  `continueRegularOutput` and branch on the item instead. ⟦REVIEW src: measured in `memory_read`, 2026-09-24⟧
+- **Mount sentinels.** `memory/briefing/_mount_check_briefing.md` and `memory/learned/_mount_check_learned.md` must
+  always exist. `memory_read` counts them and refuses to report an empty memory store unless both are present —
+  without them a broken bind mount is indistinguishable from an empty folder, and the agent would say nothing is
+  saved while every memory sits safe on the host. One per mount because the two fail independently, and matched by
+  **full path** rather than filename, so a stray copy in the wrong folder cannot satisfy the other mount's check —
+  which is why `extract_text` keeps `Keep Source: Both`, since the directory exists only at `binary.data.directory`.
+  n8n cannot test for a directory: the file node only globs, the Code node has no `fs`, and `ExecuteCommand` is
+  disabled in 2.x. ⟦REVIEW src: workflow `memory_read`, join_memories and mount_ok⟧
 - **Model in use: `qwen3:8b`.** `qwen3:14b` was tested and rejected on measurement — 12 GB resident, swap at 94%,
   load average 17.4. 24 GB of RAM is the threshold that reopens the 22–24B tier. See `PLAN.md` §4. ⟦REVIEW src: `ollama ps` output and btop reading, 2026-09-20⟧
 - Slack app **T.A.R.S** posts colour-coded block messages: saves and rejections to `#tars_logs`, write failures to
