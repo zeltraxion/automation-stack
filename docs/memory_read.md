@@ -124,7 +124,7 @@ One field, `result`, in every case: ⟦REVIEW src: workflow `memory_read`, resul
 The last two are different facts and must not be conflated. "Nothing is saved" and "your memories cannot be reached"
 lead the agent to opposite behaviour: the first is a normal state to report, the second means it should stop saving
 until reads work again — saving blind means it cannot check for an existing filename, so it invents one. ⟦REVIEW src:
-workflow `tars_agent`, system message⟧
+workflow `memory_agent`, system message⟧
 
 The split is decided in two places. `join_memories` records which sentinels it saw and sets `mountOk`; the `mount_ok`
 node routes on it. Reaching `results_read_failed` therefore has exactly one meaning — a mount is gone — so the node

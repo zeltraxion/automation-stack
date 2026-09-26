@@ -1,6 +1,6 @@
-# tars_agent
+# memory_agent
 
-The production assistant. Everything else in this repository exists to serve it. ⟦REVIEW⟧
+The chat agent for the **memory** domain — the front end over `memory_write` and `memory_read`. ⟦REVIEW⟧
 
 `test_chat_LLM` remains a learning scaffold and is not part of this. ⟦REVIEW src: docs/test_workflows.md⟧
 
@@ -25,7 +25,7 @@ flowchart TD
     style F fill:#d4edda,stroke:#28a745
 ```
 
-⟦REVIEW src: workflow `tars_agent`, read 2026-09-24⟧
+⟦REVIEW src: workflow `memory_agent`, read 2026-09-24⟧
 
 Dotted lines are sub-node connections — the model, memory and tools hang under the agent rather than passing data along a chain. ⟦REVIEW⟧
 
@@ -46,7 +46,7 @@ Simple Memory forgetting is correct behaviour. Last week's chatter in today's co
 
 The filtering step is the tool call: whatever is worth keeping gets written to a file. ⟦REVIEW⟧
 
-**Context Window Length is 10** — enough to follow a conversation, small enough to leave room for the memory files `recall_memory` returns. ⟦REVIEW src: workflow `tars_agent`, Simple Memory node⟧
+**Context Window Length is 10** — enough to follow a conversation, small enough to leave room for the memory files `recall_memory` returns. ⟦REVIEW src: workflow `memory_agent`, Simple Memory node⟧
 
 The two interact usefully. Once `recall_memory` has run in a conversation, the files are in Simple Memory, so a follow-up question needs no second call. ⟦REVIEW src: execution log 2026-09-24 — a memory update reused a filename read three messages earlier without re-calling recall_memory⟧
 
@@ -60,7 +60,7 @@ think:        false
 temperature:  0.1
 ```
 
-⟦REVIEW src: workflow `tars_agent`, Ollama Chat Model node⟧
+⟦REVIEW src: workflow `memory_agent`, Ollama Chat Model node⟧
 
 Both non-default values come from measurement. Thinking mode took 4m 39s on one query; disabled, with proper tools and a system prompt, the same query took 20s and was correct. Tool calls are structured JSON, and a default chat temperature encourages the variation that breaks parsing. ⟦REVIEW src: docs/test_workflows.md, measured results⟧
 
@@ -127,7 +127,7 @@ anything new until recall works again.
 Keep answers short and direct.
 ```
 
-⟦REVIEW src: workflow `tars_agent`, AI Agent systemMessage, read 2026-09-24⟧
+⟦REVIEW src: workflow `memory_agent`, AI Agent systemMessage, read 2026-09-24⟧
 
 Five clauses are load-bearing, each added after a specific observed failure: ⟦REVIEW⟧
 
@@ -175,7 +175,7 @@ Parameters:
 - fact: the complete fact, written as a full sentence
 ```
 
-Per-parameter descriptions decide *how each field is filled*. Each input is AI-fillable via `$fromAI(name, description, type)`, and the second argument is filled on all four: ⟦REVIEW src: workflow `tars_agent`, save_memory workflowInputs⟧
+Per-parameter descriptions decide *how each field is filled*. Each input is AI-fillable via `$fromAI(name, description, type)`, and the second argument is filled on all four: ⟦REVIEW src: workflow `memory_agent`, save_memory workflowInputs⟧
 
 | Parameter | Description given to the model |
 |---|---|
@@ -200,7 +200,7 @@ preferences, or anything saved earlier. Do not call it for general
 knowledge questions.
 ```
 
-**No parameters at all.** A tool with no arguments cannot receive malformed ones, and at this corpus size a filter could only lose information. The reasoning is in `docs/memory_read.md`. ⟦REVIEW src: workflow `tars_agent`, recall_memory workflowInputs — empty⟧
+**No parameters at all.** A tool with no arguments cannot receive malformed ones, and at this corpus size a filter could only lose information. The reasoning is in `docs/memory_read.md`. ⟦REVIEW src: workflow `memory_agent`, recall_memory workflowInputs — empty⟧
 
 The second sentence is doing real work: without it the agent reaches for memory on general-knowledge questions, which costs a full sub-workflow execution to learn nothing. ⟦REVIEW⟧
 
@@ -253,4 +253,4 @@ docs/memory_read.md, Mount sentinels⟧
 | Chat only in n8n's panel | Phase 3 replaces the trigger with Slack, once n8n is reachable from outside ⟦REVIEW src: PLAN.md Phase 3⟧ |
 | Conversation lost on restart | Postgres or Redis chat memory, Phase 5 ⟦REVIEW src: PLAN.md Phase 5⟧ |
 | Two tools only | Deliberate — the plan caps an agent at a small tool count before splitting by domain ⟦REVIEW src: PLAN.md §4⟧ |
-| No router across domains | Not yet needed. Memory is one domain; `save_memory` and `recall_memory` belong to the same agent. A router splits by domain, never by operation ⟦REVIEW⟧ |
+| No router across domains | Mail is now a second domain, so the split has happened — but deliberately without a router. Two chat entry points cost one bookmark; a router costs an extra model round-trip on every message. Revisit at three agents ⟦REVIEW src: PLAN.md §3.3, decision 2026-09-26⟧ |
