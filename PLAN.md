@@ -122,7 +122,7 @@ Splitting work across narrow agents is therefore the remedy for small-model tool
 
 **Measured against this repository, `qwen3:8b` does better than the published tier suggests.** It chained two
 `save_memory` calls in one turn, with correct filenames and topics on both — 738ms and 580ms inside a 20.6s run.
-⟦REVIEW src: `tars_agent` execution log, 2026-09-24⟧ That did **not** come from a rule. The instruction *"call
+⟦REVIEW src: `memory_agent` execution log, 2026-09-24⟧ That did **not** come from a rule. The instruction *"call
 save_memory twice, once per fact"* produced either a dropped fact or two facts merged into one file; a **worked
 example** in the system message produced two correct calls. For this model class, show the shape rather than describe
 the outcome. ⟦REVIEW src: three executions 2026-09-24⟧
@@ -294,7 +294,7 @@ database. All three are cheap to add later, because indexing runs *over* files t
 
 Each phase ends in something demonstrable. No phase starts before the previous one works. ⟦REVIEW⟧
 
-### Phase 0 — Memory substrate *(next action)*
+### Phase 0 — Memory substrate *(done)*
 
 - Create `memory/briefing/` and `memory/learned/` in the vault.
 - Add both as mounts in `docker-compose.yml` — `briefing` read-only, `learned` writable.
@@ -419,6 +419,185 @@ homelab status checks. ⟦REVIEW⟧
 The rule: **build the capability, use it for two weeks, then decide whether it stays.** Anything unused after two weeks
 gets deleted. ⟦REVIEW⟧
 
+### Phase 4.1 — Mail organizer
+
+The first Phase 4 integration, and chosen to run **before** Phase 3. Gmail polls outward, so it needs none of the
+inbound-webhook work that the chat channels are blocked on. ⟦REVIEW src: n8n-mcp `get_node` for
+`nodes-base.gmailTrigger`, a polling trigger with no webhook⟧
+
+**Personal Gmail only.** A work mailbox would need an IT conversation about third-party OAuth access before anything is
+built. ⟦REVIEW src: decision 2026-09-25⟧
+
+#### Labels are two independent axes
+
+The first draft mixed a *kind* of mail with a *priority* — `important` alongside `bills` and `newsletter`. A bill is
+important, a security alert is important, a rejection is not. Overlapping labels turn classification from a single
+choice into a judgement, and single choice is what makes it reliable at 8B. ⟦REVIEW⟧
+
+**Axis 1 — category. Exactly one, always:** ⟦REVIEW⟧
+
+| Label               | What lands there                                       | Archived in v1 |
+|---------------------|--------------------------------------------------------|----------------|
+| `jobs/application`  | "thanks for your interest", portal confirmations       | no             |
+| `jobs/interview`    | invitations, scheduling links, assessments             | no             |
+| `jobs/rejected`     | declines                                               | no             |
+| `jobs/alert`        | "12 new jobs matching your search"                     | no             |
+| `bills`             | invoices, receipts, statements, payment confirmations  | no             |
+| `security`          | password resets, login alerts, 2FA, account warnings   | no             |
+| `newsletter`        | subscriptions and digests                              | no             |
+| `general`           | nothing else fits                                      | no             |
+
+**Nothing is archived in v1 — the column is all `no` on purpose.** A wrong label leaves the mail visible; archiving is
+the only step that can hide it. So the archive step ships separately, once the labels are trusted, and the set is cut
+to `newsletter` alone. Nothing under `jobs/*` is ever archived, at any stage. ⟦REVIEW src: safety rules agreed
+2026-09-26, see docs/mail_sort.md⟧
+
+**`jobs/interview` was added during the build**, beyond this plan. Interview mail is frequent and time-sensitive, and
+it is the one job state that changes what you do today. `jobs/accepted` was considered and rejected — offers are rare,
+and an 8B model over-fires on rare positive categories, so an interview invitation would be labelled as an offer.
+⟦REVIEW src: decision 2026-09-26⟧
+
+**Axis 2 — flags, zero or more, independent:** `needs_reply`. ⟦REVIEW⟧
+
+Nested `jobs/` because job hunting is temporary and three top-level labels would crowd the sidebar permanently; one
+parent folds away when it is over. ⟦REVIEW⟧
+
+`security` is deliberately separate from routine service mail. A "new login from an unknown device" and a "your build
+finished" come from the same sender and have opposite urgency — archiving the first is how people get compromised.
+⟦REVIEW⟧
+
+`general` stays in the inbox for the same reason `memory_write` normalises an unknown topic to `general` rather than
+rejecting the save: **the escape hatch must be visible.** Unclassifiable mail that silently archives is an invisible
+failure. ⟦REVIEW src: docs/memory_write.md, arrange_fields⟧
+
+Avoid the label name `important` — Gmail has its own `IMPORTANT` marker and the collision confuses both the UI and the
+API. Confirm what labels already exist with the Gmail node's `Label → Get Many` before creating any. ⟦REVIEW⟧
+
+#### Archiving is removing a label
+
+Gmail has no archive operation because Gmail has no archive. Archiving *is* removing the `INBOX` label, so it is the
+same `Message → Remove Label` node used to add one. ⟦REVIEW src: n8n-mcp `get_node` for `nodes-base.gmail`, operations
+list — Add Label, Remove Label, no Archive⟧
+
+#### Two workflows, one agent
+
+Same split as `control_plane` and `dashboard`: one side acts, the other regenerates, and neither writes the other's
+files. ⟦REVIEW⟧
+
+**`mail_sort`** — built and published 2026-09-26, Schedule Trigger every 30 minutes, 21 nodes. Full node-by-node
+detail in `docs/mail_sort.md`; the shape as built: ⟦REVIEW src: workflow `mail_sort`, `active: true`⟧
+
+```
+Schedule Trigger (30 min)
+  → history_lookup     Gmail · q: label:sorted · 100 · Simplify ON
+  → build_sender_map   Code · sender → usual category, 3+ emails and 80% agreement
+  → fetch_mail         Gmail · q: -label:sorted in:inbox newer_than:7d · 25 · Simplify OFF
+  → trim_body          Code · strip URLs, 700 chars, attach senderHint
+  → Text Classifier    8 categories + Other branch · qwen3:8b · batchSize 1
+  → cat_* ×9           Set · stamp category + labelId
+  → merge_branches     Merge · Append · 9 inputs
+  → dedupe_and_flag    Code · one per id, build the label list
+  → apply_labels       Gmail · Add Label
+```
+
+Four differences from the sketch above, each forced by measurement: ⟦REVIEW⟧
+
+**Limit is 25, not 100.** At ~16–18s per email a batch of 100 takes ~26 minutes, which overruns the schedule interval.
+25 finishes in about 7 minutes and still covers 1,200 emails a day. ⟦REVIEW src: measured, 2026-09-26⟧
+
+**Simplify is off, and the body is trimmed.** Gmail's `snippet` stops at ~200 characters, which is *before* the
+decisive sentence in a rejection — "thank you for your application for …" arrives first and the decline arrives after.
+Every rejection would read as `job_application`. ⟦REVIEW src: measured, 2026-09-26⟧
+
+**A Merge node is required before the Code node.** Nine inbound connections make n8n run a Code node once per branch
+with data, so any state it holds resets each time. Merge in Append mode, with `numberInputs` set to 9, collapses them
+into one execution. Merge defaults to 2 inputs and silently drops the rest. ⟦REVIEW src: measured, 2026-09-26⟧
+
+**Sender history was pulled forward from "later" to v1.** Template 11518's trick — look at what this sender usually
+gets — is the real fix for the job-board-versus-recruiter confusion that description tuning could not solve. Built as
+one lookup per run rather than one per email: `history_lookup` runs on the trigger, so it is a single API call whose
+result every email reads. ⟦REVIEW src: n8n template 11518; built 2026-09-26⟧
+
+**Schedule Trigger rather than Gmail Trigger.** The Gmail trigger only yields mail that is *new since the last poll*;
+this needs "the last hundred, whatever their state", which is a search. ⟦REVIEW src: n8n-mcp `get_node` for
+`nodes-base.gmailTrigger`⟧
+
+**A `sorted` marker label is the idempotency key.** Every processed message gets it on top of its real label, and the
+query excludes it, so nothing is classified twice. Stateless and self-healing — remove `sorted` from a message and it
+gets reclassified on the next run. The same trick as the `_mount_check` sentinels: a label's presence encoding a fact
+the system cannot otherwise see. ⟦REVIEW⟧
+
+**Text Classifier, not an AI Agent.** It takes categories and routes to one output per category, so an invalid label is
+structurally impossible rather than prompt-discouraged. Parsing a label out of free text is the exact failure mode the
+rest of this plan is built to avoid. ⟦REVIEW src: `@n8n/n8n-nodes-langchain.textClassifier`⟧
+
+**`mail_digest`** — Schedule Trigger, daily, writes `dashboard/mail_tracker.md`. Separate from `mail_sort` because a
+regenerated file must not be rewritten once per email. ⟦REVIEW⟧
+
+**`mail_agent`** — its own chat trigger, its own system message, one zero-parameter tool that reads
+`dashboard/mail_tracker.md`. Mail is the second *domain*, which is when the agent split earns its place (§3.3). No
+router yet: a router costs an extra model round-trip on every message, and two front doors are cheaper until one
+annoys. ⟦REVIEW src: §3.3⟧
+
+**The cron writes, the agent only reads.** One writer per file, the same rule that governs `briefing/` and `learned/`.
+⟦REVIEW⟧
+
+#### Drafts are written, never sent
+
+`Draft → Create` only, and only when `needs_reply` is set. A draft cannot leave by accident, which makes this safe by
+construction rather than by rule — the same reasoning as the `:ro` mount on `briefing/`. ⟦REVIEW src: n8n-mcp
+`get_node` for `nodes-base.gmail`, draft resource⟧
+
+**Never for `jobs/*`.** A mediocre auto-draft to a recruiter costs a real opportunity, and that is not a place for an 8B
+model writing in someone else's voice. ⟦REVIEW⟧
+
+Every draft opens with a line naming what TARS thought the mail was — `[draft by TARS — reason: asked for
+availability]` — deleted before sending. It stops a half-written draft going out unnoticed and makes a misclassification
+visible at the moment it matters. ⟦REVIEW⟧
+
+Expect scaffolding, not finished prose: a greeting, a structure, the obvious acknowledgement. Worth it for the
+blank-page problem, not worth it if the expectation is send-ready replies. ⟦REVIEW src: §3.3, measured `qwen3:8b`
+behaviour⟧
+
+#### `dashboard/mail_tracker.md`
+
+Counts per label, then collapsible cards for anything needing attention — the Jira behaviour of a title line that
+expands into detail: ⟦REVIEW⟧
+
+```markdown
+## needs_reply (3)
+
+<details>
+<summary><b>Interview availability</b> — talent@acme.com · 2h ago</summary>
+
+Asking which days next week suit a 45-minute technical round. Draft created.
+
+[Open in Gmail](https://mail.google.com/mail/u/0/#inbox/MESSAGE_ID)
+</details>
+```
+
+**Obsidian renders `<details>` natively — no plugin.** A real Kanban board would need the Obsidian Kanban plugin, which
+reads a specific markdown layout that n8n can generate, but the board view only appears if the plugin is installed. The
+cron owns the file either way, so the same data can be regenerated into that shape later without touching anything
+else. ⟦REVIEW⟧
+
+**Done when:** a day's mail lands under the right labels, the inbox holds only what stays, and `mail_tracker.md` opens
+to a list of what actually needs answering. ⟦REVIEW⟧
+
+**Both build-time questions are now answered.** ⟦REVIEW src: measured 2026-09-26⟧
+
+`Simplify` **does** carry the labels, but under a different name and shape in each mode: `labels: [{id, name}]` when
+on, `labelIds: ['INBOX', …]` when off. One Gmail node plus a Code node produces the count table either way — no
+per-label search needed. ⟦REVIEW⟧
+
+The Gmail deep link has no reliable form. The token in a real Gmail URL is a *view token* that maps to nothing in the
+API. `https://mail.google.com/mail/u/0/#all/{messageId}` works in practice and thread links need hex conversion, so
+`mail_tracker.md` links will be best-effort rather than guaranteed. ⟦REVIEW src: published analysis of Gmail
+permalinks, read 2026-09-26⟧
+
+**Status:** `mail_sort` is live. `needs_reply`, the archive step, drafts, Slack logging, `mail_digest` and `mail_agent`
+are all unbuilt. ⟦REVIEW src: workflow `mail_sort`, 2026-09-26⟧
+
 ### Phase 5 — Oracle Cloud via Coolify
 
 Unchanged from the original roadmap: Postgres instead of SQLite, real webhooks, SSL, persistent memory. ⟦REVIEW src:
@@ -479,11 +658,15 @@ Recording these so they do not get relitigated. ⟦REVIEW⟧
 
 ## 8. Immediate next actions
 
-1. ~~Wire `memory_write` into the agent.~~ **Done, and the assumption held.** Built as a new workflow, `tars_agent`, rather than bolting production tools onto the `test_chat_LLM` scaffold. `qwen3:8b` filled all four tool parameters correctly on an explicit request, and declined to call the tool on an unrelated question. Published guidance places the comfortable tool-calling tier at 22B and above, so this was not a given — the four-field design stands. See `docs/tars_agent.md`. ⟦REVIEW src: workflow executions run 2026-09-21⟧
+1. ~~Wire `memory_write` into the agent.~~ **Done, and the assumption held.** Built as a new workflow, `memory_agent` (named `tars_agent` until 2026-09-26), rather than bolting production tools onto the `test_chat_LLM` scaffold. `qwen3:8b` filled all four tool parameters correctly on an explicit request, and declined to call the tool on an unrelated question. Published guidance places the comfortable tool-calling tier at 22B and above, so this was not a given — the four-field design stands. See `docs/memory_agent.md`. ⟦REVIEW src: workflow executions run 2026-09-21⟧
 2. ~~**Build `memory_read`**~~ **Done — nine nodes, zero parameters.** The empty case turned out not to work as predicted: `Read/Write Files from Disk` never returns zero items, it returns `{ "error": "No file(s) found" }`, so `Always Output Data` guards nothing and combining it with `onError: continueErrorOutput` fires both branches at once. The node runs `continueRegularOutput` and an `If` branches on the item instead. See `docs/memory_read.md`. ⟦REVIEW src: measured 2026-09-24⟧
 3. ~~Wire `memory_read` to the agent.~~ **Done.** `recall_memory`, no parameters, alongside `save_memory`.
 4. ~~Test the full loop across a container restart~~ **Done and passing** — a fact stated before `docker compose restart` is recalled after it. ⟦REVIEW src: manual test 2026-09-24⟧
-5. **Phase 1.5 — surface stale memories.** *Next action.* Now load-bearing rather than optional: updating a memory is about 80% reliable when the user's wording differs from the stored summary, and the other 20% leaves a stale near-duplicate on disk. The scan is what catches those. ⟦REVIEW src: repeated manual testing 2026-09-24⟧
+5. ~~**Phase 4.1 — build `mail_sort`.**~~ **Done, labels only.** Published 2026-09-26, 21 nodes, Schedule Trigger every 30 minutes. It labels and does nothing else: no archiving, no drafts, no replies. Accuracy sits around 16–17 of 20 and plateaued after two rounds of category-description tuning, which is why sender history was pulled forward from "later" into v1. See `docs/mail_sort.md`. ⟦REVIEW src: workflow `mail_sort`, three 20-email runs 2026-09-26⟧
+
+6. **Finish the mail domain.** *Next action*, in this order: Slack logging to `#tars_logs` so a run is legible without opening Gmail; `needs_reply` via the RFC-3834 header check; the archive step for `newsletter` only; then `mail_digest` → `dashboard/mail_tracker.md` and `mail_agent`. ⟦REVIEW src: docs/mail_sort.md, What this does not do yet⟧
+
+7. **Phase 1.5 — surface stale memories.** Now load-bearing rather than optional: updating a memory is about 80% reliable when the user's wording differs from the stored summary, and the other 20% leaves a stale near-duplicate on disk. The scan is what catches those. ⟦REVIEW src: repeated manual testing 2026-09-24⟧
 
    **Scope extended to cross-folder contradictions.** `briefing/` holds facts you wrote; `learned/` holds facts the agent saved. Nothing syncs between them and nothing should — the `:ro` mount on `briefing/` is what stops a model that misidentifies the target file one time in five from overwriting your own notes. But the agent can learn something in `learned/` that contradicts what you wrote in `briefing/`, and today nothing tells you. ⟦REVIEW⟧
 
@@ -492,7 +675,7 @@ Recording these so they do not get relitigated. ⟦REVIEW⟧
    A model pass is the second step, and only on pairs the deterministic stage already flagged — never the whole corpus. One pair per call, closed output set (`CONTRADICTS` / `CONSISTENT`) plus one line of explanation. That is the shape `qwen3:8b` handles well, and a nightly batch has no user waiting on it, so a wrong answer lands in a review file rather than in an answer you act on. ⟦REVIEW src: PLAN.md §3.3⟧
 
    Two rules from the start: **never auto-edit and never auto-delete** — the output is a report, and `briefing/` being `:ro` enforces half of that for free. And compare against `max(created, reviewed)` so a pair you have checked and stamped stops reappearing every night. ⟦REVIEW⟧
-6. Phase 3 — replace the chat trigger with Slack.
+8. Phase 3 — replace the chat trigger with Slack.
 
 ⟦REVIEW⟧
 
