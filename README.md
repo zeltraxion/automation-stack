@@ -172,7 +172,10 @@ docker compose pull && docker compose up -d
 | Control plane — toggles in Obsidian gate real work         | ✅     |
 | Workflow exports committed to git                          | ✅     |
 | Automated workflow export                                  | 🔜     |
-| A first real capability, replacing the test switches       | 🔜     |
+| A first real capability, replacing the test switches       | ✅     |
+| Long-term memory — save, recall, survives a restart        | ✅     |
+| Gmail auto-labelling on a schedule                         | ✅     |
+| Mail digest into Obsidian, and a mail agent                | 🔜     |
 | Vault as its own private git repo                          | 🔜     |
 
 ### 🚀 Phase 2 — Production
