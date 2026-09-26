@@ -160,14 +160,14 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
 
 ## Current state
 
-- **Git repository**, currently on `feature/memory-write`; PR #2 merged. ⟦REVIEW src: `git branch --show-current` and
-  `git log --oneline -1`, run 2026-09-20⟧
+- **Git repository**, currently on `feature/mail_organizer`; PR #5 merged. ⟦REVIEW src: `git branch --show-current` and
+  `git status --short`, run 2026-09-26⟧
 - `VAULT_PATH` is referenced on **five lines** of `docker-compose.yml`. The vault is mounted: `control_plane` and
   `memory/briefing` read-only, `dashboard`, `files` and `memory/learned` writable. `notes/` is deliberately not mounted.
   ⟦REVIEW src: docker-compose.yml, volumes block⟧
-- `n8n_workflows/` holds five exports: `tars_agent.json`, `memory_write.json`, `memory_read.json`,
-  `test_chat_LLM.json`, `test_nodes_and_obsidian.json`.
-  ⟦REVIEW src: directory listing, 2026-09-24⟧
+- `n8n_workflows/` holds six exports: `memory_agent.json`, `memory_write.json`, `memory_read.json`,
+  `mail_sort.json`, `test_chat_LLM.json`, `test_nodes_and_obsidian.json`.
+  ⟦REVIEW src: directory listing, 2026-09-26⟧
 - `custom-nodes/` and `.github/workflows/` exist but are empty. Git does not track empty directories, so they will not
   survive a clone without `.gitkeep` files. ⟦REVIEW src: directory listing, 2026-09-20⟧
 - The environment template is `env.example`. `.gitignore` no longer carries a negation for `.env.example`, so the
@@ -175,16 +175,39 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
   match, 2026-09-20⟧
 - `README.md` is a full document — 201 lines. `docs/index.md` is populated and is the docs entry point. ⟦REVIEW src:
   `wc -lc README.md`, 2026-09-20⟧
-- **The memory loop is closed:** `tars_agent`, published, with two tools — `save_memory` → `memory_write` and
+- **The memory loop is closed:** `memory_agent`, published, with two tools — `save_memory` → `memory_write` and
   `recall_memory` → `memory_read`. Verified across a container restart: facts stated before the restart are recalled
   after it. An 8B model chains two `save_memory` calls in one turn, which only worked once a **worked example** was put
   in the system message — rules alone produced a dropped fact or two facts merged into one file. Documented in
-  `docs/tars_agent.md`. ⟦REVIEW src: workflow executions run 2026-09-24⟧
+  `docs/memory_agent.md`. ⟦REVIEW src: workflow executions run 2026-09-24⟧
 - **Updating a memory is ~80% reliable** when the user's wording differs from the stored summary; the rest create a
   near-duplicate and leave the old file stale. Mitigated by a date-aware conflict rule in the system message, resolved
   manually until Phase 1.5. ⟦REVIEW src: repeated manual testing 2026-09-24⟧
 - **Both production sub-workflows are live:** `memory_write` and `memory_read`, published, documented in
   `docs/memory_write.md` and `docs/memory_read.md`. ⟦REVIEW src: n8n_workflows/⟧
+- **`mail_sort` is live and is the second domain.** Published, Schedule Trigger every 30 minutes, 21 nodes. Labels
+  Gmail into eight categories via a Text Classifier on `qwen3:8b`. **It only adds labels — nothing is archived,
+  deleted or replied to**, and that is deliberate until the accuracy is trusted. Documented in `docs/mail_sort.md`.
+  ⟦REVIEW src: workflow `mail_sort`, `active: true`, read 2026-09-26⟧
+- **Gmail: `Simplify` changes field names, not just size.** On, you get `labels: [{id, name}]`, `Subject`, `From` and
+  a ~200-character `snippet` with **no body**. Off, you get `labelIds: ['INBOX', …]`, `subject`, `from.text`, and
+  `text` / `html`. Any `IMPORTANT`/`STARRED` guard must match the mode it sits in. ⟦REVIEW src: measured both modes in
+  `mail_sort`, 2026-09-26⟧
+- **Gmail's `snippet` truncates before the decisive sentence.** A rejection opens with "thank you for your application
+  for …" and puts the decision after ~200 characters, so every rejection looks like an application update when
+  classified from the snippet. `mail_sort` therefore runs Simplify **off** and trims the real body to 700 characters
+  with URLs stripped. ⟦REVIEW src: measured, 2026-09-26⟧
+- **A Code node with nine inbound connections runs nine times, not once.** n8n executes it once per branch that has
+  data — visible as "Run 5 of 5" — so any state held in the node (a `Set` of seen IDs) resets each run. A **Merge**
+  node in Append mode with `numberInputs` set to the real count collapses them into one execution. Merge defaults to
+  **2 inputs** and silently drops the rest while still drawing the connection lines. ⟦REVIEW src: measured in
+  `mail_sort`, 2026-09-26⟧
+- **Text Classifier defaults to discarding unmatched items.** `When No Clear Match` is `Discard Item` unless set to
+  `Output on Extra, 'Other' Branch` — the default drops an email with no label and no log. ⟦REVIEW src:
+  `@n8n/n8n-nodes-langchain.textClassifier`, options⟧
+- **Category-description tuning plateaus around 16–17/20 on an 8B model.** Two rounds helped; a third moved errors
+  around rather than reducing them. Tuning works when the mechanism is nameable — a brand name in a description
+  outweighing an abstract rule — and shuffles errors when it is not. ⟦REVIEW src: three 20-email runs, 2026-09-26⟧
 - **`Read/Write Files from Disk` never returns zero items.** A pattern matching nothing is reported as
   `{ "error": "No file(s) found" }`. Two consequences: `Always Output Data` is pointless on it, and combining that
   toggle with `onError: continueErrorOutput` lights **both** branches on one failed run. Use
