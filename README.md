@@ -175,6 +175,7 @@ docker compose pull && docker compose up -d
 | A first real capability, replacing the test switches       | ✅     |
 | Long-term memory — save, recall, survives a restart        | ✅     |
 | Gmail auto-labelling on a schedule                         | ✅     |
+| Draft replies written locally, never sent                  | ✅     |
 | Mail digest into Obsidian, and a mail agent                | 🔜     |
 | Vault as its own private git repo                          | 🔜     |
 
