@@ -450,7 +450,7 @@ choice into a judgement, and single choice is what makes it reliable at 8B. ⟦R
 **Nothing is archived in v1 — the column is all `no` on purpose.** A wrong label leaves the mail visible; archiving is
 the only step that can hide it. So the archive step ships separately, once the labels are trusted, and the set is cut
 to `newsletter` alone. Nothing under `jobs/*` is ever archived, at any stage. ⟦REVIEW src: safety rules agreed
-2026-09-26, see docs/mail_sort.md⟧
+2026-09-26, see docs/mail_label_draft.md⟧
 
 **`jobs/interview` was added during the build**, beyond this plan. Interview mail is frequent and time-sensitive, and
 it is the one job state that changes what you do today. `jobs/accepted` was considered and rejected — offers are rare,
@@ -484,20 +484,23 @@ list — Add Label, Remove Label, no Archive⟧
 Same split as `control_plane` and `dashboard`: one side acts, the other regenerates, and neither writes the other's
 files. ⟦REVIEW⟧
 
-**`mail_sort`** — built and published 2026-09-26, Schedule Trigger every 30 minutes, 21 nodes. Full node-by-node
-detail in `docs/mail_sort.md`; the shape as built: ⟦REVIEW src: workflow `mail_sort`, `active: true`⟧
+**`mail_label_draft`** — built and published, Schedule Trigger every 30 minutes. It calls **`mail_categorizer`** as a
+sub-workflow for the classification half. Full node-by-node detail in `docs/mail_label_draft.md` and
+`docs/mail_categorizer.md`; the shape as built: ⟦REVIEW src: both workflows, `active: true`, 2026-09-27⟧
 
 ```
 Schedule Trigger (30 min)
-  → history_lookup     Gmail · q: label:sorted · 100 · Simplify ON
-  → build_sender_map   Code · sender → usual category, 3+ emails and 80% agreement
-  → fetch_mail         Gmail · q: -label:sorted in:inbox newer_than:7d · 25 · Simplify OFF
-  → trim_body          Code · strip URLs, 700 chars, attach senderHint
-  → Text Classifier    8 categories + Other branch · qwen3:8b · batchSize 1
-  → cat_* ×9           Set · stamp category + labelId
-  → merge_branches     Merge · Append · 9 inputs
-  → dedupe_and_flag    Code · one per id, build the label list
-  → apply_labels       Gmail · Add Label
+  → history_lookup      Gmail · q: label:sorted · 100 · Simplify ON
+  → build_sender_map    Code · sender → usual category, 3+ emails and 80% agreement
+  → fetch_mail          Gmail · q: -label:sorted in:inbox newer_than:7d · 25 · Simplify OFF
+  → trim_body           Code · strip URLs, 700 chars, attach senderHint
+  → mail_categorizer    sub-workflow · 9 categories + Other · returns category + labelId
+  → dedupe_and_flag     Code · one per id, build the label list
+  ├─► apply_labels      Gmail · Add Label
+  └─► filter_repliable  Code · category gate + sender address, no model
+        → reply_check   Text Classifier · needs_reply / no_reply_needed
+        → write_draft   Basic LLM Chain · placeholders, never invented facts
+        → create_draft  Gmail · Draft → Create, threaded
 ```
 
 Four differences from the sketch above, each forced by measurement: ⟦REVIEW⟧
@@ -531,8 +534,8 @@ the system cannot otherwise see. ⟦REVIEW⟧
 structurally impossible rather than prompt-discouraged. Parsing a label out of free text is the exact failure mode the
 rest of this plan is built to avoid. ⟦REVIEW src: `@n8n/n8n-nodes-langchain.textClassifier`⟧
 
-**`mail_digest`** — Schedule Trigger, daily, writes `dashboard/mail_tracker.md`. Separate from `mail_sort` because a
-regenerated file must not be rewritten once per email. ⟦REVIEW⟧
+**`mail_digest`** — Schedule Trigger, daily, writes `dashboard/mail_tracker.md`. Separate from `mail_label_draft`
+because a regenerated file must not be rewritten once per email. ⟦REVIEW⟧
 
 **`mail_agent`** — its own chat trigger, its own system message, one zero-parameter tool that reads
 `dashboard/mail_tracker.md`. Mail is the second *domain*, which is when the agent split earns its place (§3.3). No
@@ -595,8 +598,18 @@ API. `https://mail.google.com/mail/u/0/#all/{messageId}` works in practice and t
 `mail_tracker.md` links will be best-effort rather than guaranteed. ⟦REVIEW src: published analysis of Gmail
 permalinks, read 2026-09-26⟧
 
-**Status:** `mail_sort` is live. `needs_reply`, the archive step, drafts, Slack logging, `mail_digest` and `mail_agent`
-are all unbuilt. ⟦REVIEW src: workflow `mail_sort`, 2026-09-26⟧
+**Status:** `mail_label_draft` and `mail_categorizer` are live, labelling and drafting. The `needs_reply` label, the
+archive step, Slack logging, `mail_digest` and `mail_agent` are unbuilt. ⟦REVIEW src: both workflows, 2026-09-27⟧
+
+**Drafts turned out to need three gates, not one.** A category gate and a sender-address check, both deterministic,
+cut a 25-email batch to 0–2 before any model runs — which is what makes the two model calls after them affordable. A
+single LLM pass over every email, as the one community precedent does it, costs 25 calls to answer a question that two
+lines of code answer for 23 of them. ⟦REVIEW src: workflow `mail_label_draft`; community workflow 1479⟧
+
+**An 8B model invents facts about the user when drafting**, and rules alone do not stop it. Asked to reply to an email
+requesting availability and notice period, `qwen3:8b` answered with specific days and "15 days", both fabricated. Two
+worked examples fixed it — the same lever that fixed two-call chaining in `memory_agent`. ⟦REVIEW src: measured
+2026-09-27⟧
 
 ### Phase 5 — Oracle Cloud via Coolify
 
@@ -662,9 +675,9 @@ Recording these so they do not get relitigated. ⟦REVIEW⟧
 2. ~~**Build `memory_read`**~~ **Done — nine nodes, zero parameters.** The empty case turned out not to work as predicted: `Read/Write Files from Disk` never returns zero items, it returns `{ "error": "No file(s) found" }`, so `Always Output Data` guards nothing and combining it with `onError: continueErrorOutput` fires both branches at once. The node runs `continueRegularOutput` and an `If` branches on the item instead. See `docs/memory_read.md`. ⟦REVIEW src: measured 2026-09-24⟧
 3. ~~Wire `memory_read` to the agent.~~ **Done.** `recall_memory`, no parameters, alongside `save_memory`.
 4. ~~Test the full loop across a container restart~~ **Done and passing** — a fact stated before `docker compose restart` is recalled after it. ⟦REVIEW src: manual test 2026-09-24⟧
-5. ~~**Phase 4.1 — build `mail_sort`.**~~ **Done, labels only.** Published 2026-09-26, 21 nodes, Schedule Trigger every 30 minutes. It labels and does nothing else: no archiving, no drafts, no replies. Accuracy sits around 16–17 of 20 and plateaued after two rounds of category-description tuning, which is why sender history was pulled forward from "later" into v1. See `docs/mail_sort.md`. ⟦REVIEW src: workflow `mail_sort`, three 20-email runs 2026-09-26⟧
+5. ~~**Phase 4.1 — build the mail organizer.**~~ **Done, labels and drafts.** `mail_label_draft` on a 30-minute schedule, calling `mail_categorizer` for classification. It labels every fetched email and writes a Gmail draft for the one or two a person is waiting on. Nothing is archived, deleted or sent. Classification accuracy sits around 16–17 of 20 and plateaued after two rounds of category-description tuning, which is why sender history was pulled forward from "later" into v1. See `docs/mail_label_draft.md` and `docs/mail_categorizer.md`. ⟦REVIEW src: both workflows, three 20-email runs 2026-09-26, draft testing 2026-09-27⟧
 
-6. **Finish the mail domain.** *Next action*, in this order: Slack logging to `#tars_logs` so a run is legible without opening Gmail; `needs_reply` via the RFC-3834 header check; the archive step for `newsletter` only; then `mail_digest` → `dashboard/mail_tracker.md` and `mail_agent`. ⟦REVIEW src: docs/mail_sort.md, What this does not do yet⟧
+6. **Finish the mail domain.** *Next action*, in this order: Slack logging to `#tars_logs` so a run is legible without opening Gmail; the `needs_reply` label applied after a draft exists, so it means "a draft is waiting"; the archive step for `newsletter` only; then `mail_digest` → `dashboard/mail_tracker.md` and `mail_agent`. ⟦REVIEW src: docs/mail_label_draft.md, What this does not do yet⟧
 
 7. **Phase 1.5 — surface stale memories.** Now load-bearing rather than optional: updating a memory is about 80% reliable when the user's wording differs from the stored summary, and the other 20% leaves a stale near-duplicate on disk. The scan is what catches those. ⟦REVIEW src: repeated manual testing 2026-09-24⟧
 
