@@ -1,6 +1,6 @@
 # Docs
 
-Detailed documentation for this repository. Start here. ⟦REVIEW⟧
+Detailed documentation for this repository. Start here.
 
 ## Where things are
 
@@ -16,23 +16,19 @@ Detailed documentation for this repository. Start here. ⟦REVIEW⟧
 | [`mail_categorizer.md`](mail_categorizer.md) | The classification sub-workflow — categories, label IDs, accuracy |
 | [`test_workflows.md`](test_workflows.md) | The two learning workflows, and measured agent-configuration results   |
 
-⟦REVIEW⟧
-
 ## Reading order
 
-New to the repository: `README.md` for how to run it, then `PLAN.md` for why it is shaped this way. ⟦REVIEW⟧
+New to the repository: `README.md` for how to run it, then `PLAN.md` for why it is shaped this way.
 
 Working on an agent: `memory_agent.md`. Building or changing a workflow: `test_workflows.md` for the measured agent-configuration findings, then
-`memory_write.md` and `memory_read.md` as the two worked examples — one writing, one reading. ⟦REVIEW⟧
+`memory_write.md` and `memory_read.md` as the two worked examples — one writing, one reading.
 
 The mail pages are the worked examples that are not about memory. `mail_label_draft.md` covers the scheduled workflow
 end to end — the three gates before a model runs, and the safety rules that govern anything which could hide mail.
-`mail_categorizer.md` covers the sub-workflow it calls. ⟦REVIEW⟧
+`mail_categorizer.md` covers the sub-workflow it calls.
 
 ## Conventions
 
-Workflows live in `n8n_workflows/` as exported JSON. Each production workflow gets a page here named after it. ⟦REVIEW
-src: repository directory listing, read 2026-09-20⟧
+Workflows live in `n8n_workflows/` as exported JSON. Each production workflow gets a page here named after it.
 
-Test and learning workflows are documented together in `test_workflows.md` rather than one page each. ⟦REVIEW src:
-docs/test_workflows.md, covers both test_nodes_and_obsidian and test_chat_LLM⟧
+Test and learning workflows are documented together in `test_workflows.md` rather than one page each.
