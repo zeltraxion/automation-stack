@@ -165,9 +165,9 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
 - `VAULT_PATH` is referenced on **five lines** of `docker-compose.yml`. The vault is mounted: `control_plane` and
   `memory/briefing` read-only, `dashboard`, `files` and `memory/learned` writable. `notes/` is deliberately not mounted.
   ⟦REVIEW src: docker-compose.yml, volumes block⟧
-- `n8n_workflows/` holds six exports: `memory_agent.json`, `memory_write.json`, `memory_read.json`,
-  `mail_sort.json`, `test_chat_LLM.json`, `test_nodes_and_obsidian.json`.
-  ⟦REVIEW src: directory listing, 2026-09-26⟧
+- `n8n_workflows/` holds seven exports: `memory_agent.json`, `memory_write.json`, `memory_read.json`,
+  `mail_label_draft.json`, `mail_categorizer.json`, `test_chat_LLM.json`, `test_nodes_and_obsidian.json`.
+  ⟦REVIEW src: directory listing, 2026-09-27⟧
 - `custom-nodes/` and `.github/workflows/` exist but are empty. Git does not track empty directories, so they will not
   survive a clone without `.gitkeep` files. ⟦REVIEW src: directory listing, 2026-09-20⟧
 - The environment template is `env.example`. `.gitignore` no longer carries a negation for `.env.example`, so the
@@ -185,23 +185,38 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
   manually until Phase 1.5. ⟦REVIEW src: repeated manual testing 2026-09-24⟧
 - **Both production sub-workflows are live:** `memory_write` and `memory_read`, published, documented in
   `docs/memory_write.md` and `docs/memory_read.md`. ⟦REVIEW src: n8n_workflows/⟧
-- **`mail_sort` is live and is the second domain.** Published, Schedule Trigger every 30 minutes, 21 nodes. Labels
-  Gmail into eight categories via a Text Classifier on `qwen3:8b`. **It only adds labels — nothing is archived,
-  deleted or replied to**, and that is deliberate until the accuracy is trusted. Documented in `docs/mail_sort.md`.
-  ⟦REVIEW src: workflow `mail_sort`, `active: true`, read 2026-09-26⟧
+- **The mail domain is live.** `mail_label_draft`, published, Schedule Trigger every 30 minutes, calls
+  `mail_categorizer` as a sub-workflow. It labels every fetched email into one of nine categories, and writes a Gmail
+  draft for the one or two a person is actually waiting on. **Nothing is archived, deleted or sent** — drafts only,
+  deliberately, until accuracy is trusted. Documented in `docs/mail_label_draft.md` and `docs/mail_categorizer.md`.
+  ⟦REVIEW src: both workflows, `active: true`, read 2026-09-27⟧
+- **Three gates stand between a fetched email and a model call in the draft branch:** a category gate, a sender-address
+  check, then a Text Classifier. The first two are deterministic and cut 25 emails to 0–2, which is what makes the two
+  model calls after them affordable. ⟦REVIEW src: workflow `mail_label_draft`, filter_repliable⟧
+- **An 8B model invents facts about the user when drafting.** Asked to reply to an email requesting availability and
+  notice period, `qwen3:8b` answered with specific days and "15 days", both fabricated and stated as fact. Rules alone
+  did not stop it; **two worked examples did** — the same finding as `memory_agent`. The fix is a named-placeholder
+  instruction plus examples, producing `[YOUR AVAILABILITY]` instead of a guess. ⟦REVIEW src: measured 2026-09-27⟧
+- **A Gmail draft needs `options.threadId` or it is orphaned.** Without it the draft sits alone in Drafts with no link
+  to the email; with it, it appears inside the conversation. ⟦REVIEW src: n8n community workflow 1479⟧
+- **`Execute Sub-workflow` stores `mappingMode: defineBelow` with an empty value object, and that is not a bug** when
+  the target trigger runs `Accept all data` — n8n skips input mapping and every field passes through. ⟦REVIEW src:
+  measured 2026-09-27⟧
+- **Merge caps at 10 inputs.** An eleventh branch needs a second Merge node chained after the first. ⟦REVIEW src:
+  measured in the n8n UI, 2026-09-27⟧
 - **Gmail: `Simplify` changes field names, not just size.** On, you get `labels: [{id, name}]`, `Subject`, `From` and
   a ~200-character `snippet` with **no body**. Off, you get `labelIds: ['INBOX', …]`, `subject`, `from.text`, and
   `text` / `html`. Any `IMPORTANT`/`STARRED` guard must match the mode it sits in. ⟦REVIEW src: measured both modes in
-  `mail_sort`, 2026-09-26⟧
+  `mail_label_draft`, 2026-09-26⟧
 - **Gmail's `snippet` truncates before the decisive sentence.** A rejection opens with "thank you for your application
   for …" and puts the decision after ~200 characters, so every rejection looks like an application update when
-  classified from the snippet. `mail_sort` therefore runs Simplify **off** and trims the real body to 700 characters
+  classified from the snippet. `mail_label_draft` therefore runs Simplify **off** and trims the real body to 700 characters
   with URLs stripped. ⟦REVIEW src: measured, 2026-09-26⟧
 - **A Code node with nine inbound connections runs nine times, not once.** n8n executes it once per branch that has
   data — visible as "Run 5 of 5" — so any state held in the node (a `Set` of seen IDs) resets each run. A **Merge**
   node in Append mode with `numberInputs` set to the real count collapses them into one execution. Merge defaults to
   **2 inputs** and silently drops the rest while still drawing the connection lines. ⟦REVIEW src: measured in
-  `mail_sort`, 2026-09-26⟧
+  `mail_label_draft`, 2026-09-26⟧
 - **Text Classifier defaults to discarding unmatched items.** `When No Clear Match` is `Discard Item` unless set to
   `Output on Extra, 'Other' Branch` — the default drops an email with no label and no log. ⟦REVIEW src:
   `@n8n/n8n-nodes-langchain.textClassifier`, options⟧
