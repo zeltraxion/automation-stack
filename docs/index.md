@@ -12,7 +12,8 @@ Detailed documentation for this repository. Start here. ⟦REVIEW⟧
 | [`memory_agent.md`](memory_agent.md)     | The memory-domain chat agent — model settings, system message, tool design |
 | [`memory_write.md`](memory_write.md)     | The memory-writing workflow — flow diagrams, design, security controls |
 | [`memory_read.md`](memory_read.md)       | The memory-reading workflow — why it takes no parameters, measured n8n behaviour |
-| [`mail_sort.md`](mail_sort.md)           | The Gmail labelling workflow — label set, classifier design, safety rules |
+| [`mail_label_draft.md`](mail_label_draft.md) | The Gmail labelling and drafting workflow — flow, gates, safety rules |
+| [`mail_categorizer.md`](mail_categorizer.md) | The classification sub-workflow — categories, label IDs, accuracy |
 | [`test_workflows.md`](test_workflows.md) | The two learning workflows, and measured agent-configuration results   |
 
 ⟦REVIEW⟧
@@ -24,8 +25,9 @@ New to the repository: `README.md` for how to run it, then `PLAN.md` for why it 
 Working on an agent: `memory_agent.md`. Building or changing a workflow: `test_workflows.md` for the measured agent-configuration findings, then
 `memory_write.md` and `memory_read.md` as the two worked examples — one writing, one reading. ⟦REVIEW⟧
 
-`mail_sort.md` is the third worked example and the only one that is not about memory — read it for the classifier
-design, the two-axis label set, and the safety rules that govern anything which hides mail. ⟦REVIEW⟧
+The mail pages are the worked examples that are not about memory. `mail_label_draft.md` covers the scheduled workflow
+end to end — the three gates before a model runs, and the safety rules that govern anything which could hide mail.
+`mail_categorizer.md` covers the sub-workflow it calls. ⟦REVIEW⟧
 
 ## Conventions
 
