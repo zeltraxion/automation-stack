@@ -318,3 +318,13 @@ channel is a leak.
 | A folder inside a live mount could be deleted unnoticed | The sentinels prove each *mount*. A subfolder removed from a mounted vault produces no error and no missing sentinel |
 | Contradictions between `briefing/` and `learned/` are not detected | `PLAN.md` Phase 1.5 — a scheduled cross-folder scan into `dashboard/stale_memories.md` |
 | Context cost grows with file count       | At 16,384 tokens, watch it past ~30 files          |
+
+## Failure reporting
+
+This workflow's Error Workflow is set to `error_handler`, so any failure it does **not** handle itself posts a red
+card to `#tars_alerts` naming the node and linking straight to the failed execution. See
+[`error_handler.md`](error_handler.md).
+
+The nodes set to `Continue (using error output)` are excluded from that, by definition — they route their failure
+down a second wire instead of failing the execution, and report it through their own Slack card. `error_handler`
+covers the rest: a Code node throwing, an expression referencing a node that did not run, Ollama unreachable.

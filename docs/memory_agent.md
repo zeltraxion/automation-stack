@@ -247,3 +247,13 @@ now means the store really is empty rather than unreachable. The agent can trust
 | Conversation lost on restart | Postgres or Redis chat memory, Phase 5 |
 | Two tools only | Deliberate — the plan caps an agent at a small tool count before splitting by domain |
 | No router across domains | Mail is now a second domain, so the split has happened — but deliberately without a router. Two chat entry points cost one bookmark; a router costs an extra model round-trip on every message. Revisit at three agents |
+
+## Failure reporting
+
+This workflow's Error Workflow is set to `error_handler`, so any failure it does **not** handle itself posts a red
+card to `#tars_alerts` naming the node and linking straight to the failed execution. See
+[`error_handler.md`](error_handler.md).
+
+The nodes set to `Continue (using error output)` are excluded from that, by definition — they route their failure
+down a second wire instead of failing the execution, and report it through their own Slack card. `error_handler`
+covers the rest: a Code node throwing, an expression referencing a node that did not run, Ollama unreachable.
