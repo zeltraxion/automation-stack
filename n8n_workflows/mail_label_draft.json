@@ -7,7 +7,7 @@
       "typeVersion": 1,
       "position": [
         -5440,
-        2144
+        2432
       ],
       "id": "9b6731bc-88b0-4d92-adae-b37e8205c327",
       "name": "When clicking ‘Execute workflow’"
@@ -26,17 +26,20 @@
       "typeVersion": 2.2,
       "position": [
         -4768,
-        2240
+        2464
       ],
       "id": "08c48883-17fa-42cd-8169-d0e282fd6242",
       "name": "fetch_mail",
       "webhookId": "b8ed7da7-769f-409a-abd1-4edf8f333807",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
       "credentials": {
         "gmailOAuth2": {
           "id": "mjM40zjHqlK2BaBE",
           "name": "Gmail account"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -46,7 +49,7 @@
       "typeVersion": 2,
       "position": [
         -4096,
-        2240
+        2256
       ],
       "id": "415833c2-e712-4fa1-92fa-07f46234a562",
       "name": "dedupe_and_flag"
@@ -66,7 +69,7 @@
       "typeVersion": 1.4,
       "position": [
         -5440,
-        2336
+        2624
       ],
       "id": "66f74629-1584-43d1-9139-2fb0fc45b4d6",
       "name": "Schedule Trigger"
@@ -79,7 +82,7 @@
       "typeVersion": 2,
       "position": [
         -4544,
-        2240
+        2384
       ],
       "id": "738b83b9-3c80-46dd-b987-7841c8a4106f",
       "name": "trim_body"
@@ -96,17 +99,20 @@
       "typeVersion": 2.2,
       "position": [
         -5216,
-        2240
+        2528
       ],
       "id": "2701b919-8169-4863-a6f4-c950e4f22836",
       "name": "history_lookup",
       "webhookId": "408271f7-1f51-4df1-aa4e-dc190f02d124",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
       "credentials": {
         "gmailOAuth2": {
           "id": "mjM40zjHqlK2BaBE",
           "name": "Gmail account"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -116,7 +122,7 @@
       "typeVersion": 2,
       "position": [
         -4992,
-        2240
+        2464
       ],
       "id": "ae90524d-db31-4237-99c0-34f585233949",
       "name": "build_sender_map"
@@ -130,18 +136,21 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        -3872,
-        2144
+        -2944,
+        2208
       ],
       "id": "cbc6d991-ed72-4353-8d9a-ec268dc3c56f",
       "name": "apply_labels",
       "webhookId": "ccb97573-a7ac-4966-a66c-3598e8194532",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
       "credentials": {
         "gmailOAuth2": {
           "id": "mjM40zjHqlK2BaBE",
           "name": "Gmail account"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -151,7 +160,7 @@
       "typeVersion": 2,
       "position": [
         -3872,
-        2336
+        2480
       ],
       "id": "5afb21de-49e6-4dc5-9ee6-b477c6b792b2",
       "name": "filter_repliable"
@@ -184,7 +193,7 @@
       "typeVersion": 1.1,
       "position": [
         -3648,
-        2336
+        2480
       ],
       "id": "c68b17f2-4fa6-411b-afe3-fc58df3c61d6",
       "name": "reply_check"
@@ -208,7 +217,7 @@
       "typeVersion": 1.9,
       "position": [
         -3296,
-        2336
+        2480
       ],
       "id": "1b6e6152-b9d1-4099-811c-ffdd2f52e776",
       "name": "write_draft"
@@ -224,8 +233,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmOllama",
       "typeVersion": 1,
       "position": [
-        -3472,
-        2544
+        -3584,
+        2752
       ],
       "id": "b9331e3e-2f67-4ad8-83e6-4abbf0d25c2f",
       "name": "ollama_reply",
@@ -250,17 +259,20 @@
       "typeVersion": 2.2,
       "position": [
         -2944,
-        2336
+        2480
       ],
       "id": "0e121af1-8871-453c-9692-2b68b4e0edca",
       "name": "create_draft",
       "webhookId": "9d70232e-fc67-42cc-8f76-a2b605c8089c",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
       "credentials": {
         "gmailOAuth2": {
           "id": "mjM40zjHqlK2BaBE",
           "name": "Gmail account"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -287,10 +299,118 @@
       "typeVersion": 1.3,
       "position": [
         -4320,
-        2240
+        2384
       ],
       "id": "f632e1a9-972a-4a01-b940-5a46be682aff",
-      "name": "mail_categorizer"
+      "name": "mail_categorizer",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0C32VB38H4",
+          "mode": "id"
+        },
+        "messageType": "block",
+        "blocksUi": "={\"attachments\":[{\"color\":\"#dc3545\",\"fallback\":\"mail step failed\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\":rotating_light:  *Mail step failed*\"}},{\"type\":\"section\",\"fields\":[{\"type\":\"mrkdwn\",\"text\":\"*Workflow*\\n`{{ $workflow.name }}`\"},{\"type\":\"mrkdwn\",\"text\":\"*Node*\\n`{{ $json.error?.node?.name ?? 'see execution' }}`\"}]},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*Error*\\n{{ JSON.stringify($json.error?.message ?? $json.error ?? 'no message').slice(1,-1) }}\"}},{\"type\":\"context\",\"elements\":[{\"type\":\"mrkdwn\",\"text\":\"execution `{{ $execution.id }}`  ·  http://localhost:5678/workflow/{{ $workflow.id }}/executions/{{ $execution.id }}\"}]}]}]}",
+        "text": "=mail step failed: {{ JSON.stringify($json.error?.message ?? 'unknown').slice(1,-1) }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        -2720,
+        2624
+      ],
+      "id": "c22ec586-aa26-4d30-87db-416a256d3f3e",
+      "name": "error_logs",
+      "webhookId": "dbfde899-31d6-4793-aa55-756cdf8077d1",
+      "credentials": {
+        "slackApi": {
+          "id": "Evd3eBEncrme7O5O",
+          "name": "Slack account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -2720,
+        2160
+      ],
+      "id": "a356ab62-fc6f-4d66-95eb-9685139594c2",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AN74FTGA0",
+          "mode": "id"
+        },
+        "messageType": "block",
+        "blocksUi": "={\"attachments\":[{\"color\":\"#2eb886\",\"fallback\":\"draft written\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\":pencil:  *Draft written*\"}},{\"type\":\"section\",\"fields\":[{\"type\":\"mrkdwn\",\"text\":\"*To*\\n{{ JSON.stringify($('reply_check').item.json.From ?? 'unknown').slice(1,-1) }}\"},{\"type\":\"mrkdwn\",\"text\":\"*Subject*\\n{{ JSON.stringify($('reply_check').item.json.Subject ?? 'unknown').slice(1,-1) }}\"}]},{\"type\":\"context\",\"elements\":[{\"type\":\"mrkdwn\",\"text\":\"`mail_label_draft`  ·  draft only, never sent  ·  check the thread in Gmail\"}]}]}]}",
+        "text": "=draft written for: {{ JSON.stringify($('reply_check').item.json.Subject ?? 'unknown').slice(1,-1) }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        -2720,
+        2848
+      ],
+      "id": "81b8aed3-a500-4f41-98d0-de1f2e28ca64",
+      "name": "draft_success",
+      "webhookId": "dbfde899-31d6-4793-aa55-756cdf8077d1",
+      "credentials": {
+        "slackApi": {
+          "id": "Evd3eBEncrme7O5O",
+          "name": "Slack account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AN74FTGA0",
+          "mode": "id"
+        },
+        "messageType": "block",
+        "blocksUi": "={\"attachments\":[{\"color\":\"#2eb886\",\"fallback\":\"mail sorted\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\":inbox_tray:  *Mail sorted*\"}},{\"type\":\"section\",\"fields\":[{\"type\":\"mrkdwn\",\"text\":\"*Sorted*\\n`{{ $('dedupe_and_flag').all().length }}`\"},{\"type\":\"mrkdwn\",\"text\":\"*Undecided*\\n`{{ $('dedupe_and_flag').all().filter(i=>i.json.category==='other').length }}`\"}]},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*Breakdown*\\n{{ Object.entries($('dedupe_and_flag').all().reduce((a,i)=>{const c=i.json.category||'unknown';a[c]=(a[c]||0)+1;return a},{})).sort((a,b)=>b[1]-a[1]).map(([c,n])=>n+' '+c).join('  ·  ') }}\"}},{\"type\":\"context\",\"elements\":[{\"type\":\"mrkdwn\",\"text\":\"`mail_label_draft`  ·  {{ $('dedupe_and_flag').all().filter(i=>i.json.senderHint).length }} had sender history  ·  labels only, nothing archived\"}]}]}]}",
+        "text": "=mail sorted: {{ $('dedupe_and_flag').all().length }} email(s)",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        -2496,
+        2160
+      ],
+      "id": "e225779b-3d8d-44c6-8940-2e939c44868b",
+      "name": "label_success",
+      "webhookId": "dbfde899-31d6-4793-aa55-756cdf8077d1",
+      "credentials": {
+        "slackApi": {
+          "id": "Evd3eBEncrme7O5O",
+          "name": "Slack account"
+        }
+      },
+      "onError": "continueErrorOutput"
     }
   ],
   "pinData": {},
@@ -311,6 +431,13 @@
         [
           {
             "node": "trim_body",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error_logs",
             "type": "main",
             "index": 0
           }
@@ -360,6 +487,13 @@
         [
           {
             "node": "build_sender_map",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error_logs",
             "type": "main",
             "index": 0
           }
@@ -434,6 +568,65 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "error_logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "apply_labels": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error_logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_draft": {
+      "main": [
+        [
+          {
+            "node": "draft_success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error_logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "error_logs": {
+      "main": [
+        []
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "label_success",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     }
@@ -441,9 +634,13 @@
   "active": true,
   "settings": {
     "executionOrder": "v1",
-    "binaryMode": "separate"
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "6eSlQKBSKH5m92AS",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
   },
-  "versionId": "ad017c9a-d24c-435f-afcd-b79c1a62d0b0",
+  "versionId": "c307a7d3-96c2-4d3a-b7ca-c12eb2867486",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"
