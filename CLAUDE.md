@@ -142,8 +142,9 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
 - `VAULT_PATH` is referenced on **five lines** of `docker-compose.yml`. The vault is mounted: `control_plane` and
   `memory/briefing` read-only, `dashboard`, `files` and `memory/learned` writable. `notes/` is deliberately not mounted.
 
-- `n8n_workflows/` holds seven exports: `memory_agent.json`, `memory_write.json`, `memory_read.json`,
-  `mail_label_draft.json`, `mail_categorizer.json`, `test_chat_LLM.json`, `test_nodes_and_obsidian.json`.
+- `n8n_workflows/` holds eight exports: `memory_agent.json`, `memory_write.json`, `memory_read.json`,
+  `mail_label_draft.json`, `mail_categorizer.json`, `error_handler.json`, `test_chat_LLM.json`,
+  `test_nodes_and_obsidian.json`.
 
 - `custom-nodes/` and `.github/workflows/` exist but are empty. Git does not track empty directories, so they will not
   survive a clone without `.gitkeep` files.
@@ -165,6 +166,15 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
   draft for the one or two a person is actually waiting on. **Nothing is archived, deleted or sent** — drafts only,
   deliberately, until accuracy is trusted. Documented in `docs/mail_label_draft.md` and `docs/mail_categorizer.md`.
 
+- **`error_handler` is the shared failure alert.** Two nodes — Error Trigger into a red Slack card on `#tars_alerts`
+  naming the workflow, the failing node and a link to the execution. Set as the Error Workflow on all five production
+  workflows; deliberately not on itself, since an error handler that errors calls itself. Documented in
+  `docs/error_handler.md`.
+- **A node set to `Continue (using error output)` does not fail the execution, so `error_handler` never sees it.**
+  That is the handover between the two logging styles: per-node error outputs report through the workflow's own Slack
+  card, `error_handler` covers everything unhandled. Five nodes in `mail_label_draft` work that way.
+- **The four Gmail nodes retry three times at two-second intervals.** A dropped connection to Google is exactly what
+  retry exists for — an alert now means three consecutive failures, not one bad response.
 - **Three gates stand between a fetched email and a model call in the draft branch:** a category gate, a sender-address
   check, then a Text Classifier. The first two are deterministic and cut 25 emails to 0–2, which is what makes the two
   model calls after them affordable.
