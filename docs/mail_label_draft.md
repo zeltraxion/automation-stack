@@ -30,6 +30,9 @@ flowchart TD
     W["<b>write_draft</b><br/>Basic LLM Chain"]
     O["<b>ollama_reply</b><br/>qwen3:8b · thinking off · temp 0.1"]
     G["<b>create_draft</b><br/>Gmail · Draft → Create"]
+    L1["<b>label_success</b><br/>Slack · #tars_logs"]
+    L2["<b>draft_success</b><br/>Slack · #tars_logs"]
+    L3["<b>error_logs</b><br/>Slack · #tars_alerts"]
     T1 --> H
     T2 --> H
     H --> M --> F --> B --> C --> D
@@ -37,6 +40,14 @@ flowchart TD
     D --> R --> K --> W --> G
     K -.-> O
     W -.-> O
+    A --> L1
+    G --> L2
+    H -.-> L3
+    F -.-> L3
+    C -.-> L3
+    A -.-> L3
+    G -.-> L3
+    style L3 fill:#f8d7da,stroke:#dc3545
     style C fill:#e7f1ff,stroke:#0d6efd
     style A fill:#d4edda,stroke:#28a745
     style G fill:#d4edda,stroke:#28a745
@@ -244,6 +255,61 @@ sender were left behind, so the expression reaches back to the last node that st
 **Draft → Create only.** There is no send operation anywhere in this workflow. Safe by construction rather than by
 rule, the same reasoning as the `:ro` mount on `briefing/`.
 
+## Logging
+
+Three Slack cards, and one thing that deliberately produces none.
+
+### `label_success` — green, `#tars_logs`
+
+One card per run: how many were sorted, how many the model could not decide, the category breakdown, and how many had
+sender history to lean on.
+
+```
+Mail sorted
+Sorted 20    Undecided 2
+Breakdown    6 newsletter · 5 job_alert · 4 bills · 3 general · 2 security
+mail_label_draft · 7 had sender history · labels only, nothing archived
+```
+
+A **Limit** node set to 1 item sits between `apply_labels` and this card. `apply_labels` runs once per email, so
+without it you would get twenty identical cards. The counting is done inline in the Slack expressions, reading
+`$('dedupe_and_flag').all()`.
+
+**The counts are attempts, not successes.** They come from `dedupe_and_flag`, which is upstream of `apply_labels`, so
+if three of twenty labels fail the green card still says 20. The red cards are what tell you otherwise — read the two
+channels together.
+
+### `draft_success` — green, `#tars_logs`
+
+One card per draft, naming the recipient and subject. `create_draft` already emits one item per draft and there are
+only ever nought to two, so this needs nothing in front of it.
+
+### `error_logs` — red, `#tars_alerts`
+
+Five nodes route their failures here: `history_lookup`, `fetch_mail`, `mail_categorizer`, `apply_labels` and
+`create_draft`. All five are set to `Continue (using error output)`, so a failure sends the item down a second wire
+instead of killing the run.
+
+That changes two things for the better. A per-item failure stops being a whole-run failure — if `apply_labels` chokes
+on email five of twenty, the other nineteen still get labelled. And the four Gmail nodes retry three times at
+two-second intervals first, so a card means three consecutive failures rather than one dropped connection.
+
+It also means those five nodes no longer fail the execution, so `error_handler` does not fire for them. That is a
+handover, not a hole: the per-node card covers the five, `error_handler` covers everything else. See
+[`error_handler.md`](error_handler.md).
+
+**All three Slack nodes are themselves set to `Continue (using error output)`.** An alert node that takes the workflow
+down when Slack has a bad day is worse than no alert.
+
+**Never turn on `Always Output Data` alongside an error output.** That combination fires both branches on a single
+failure — measured in `memory_read`, where it produced two contradictory Slack cards and a return value that was a
+coin flip.
+
+### Quiet runs stay quiet
+
+When `fetch_mail` finds nothing, no items flow and no card posts. Otherwise a 30-minute schedule would produce 48
+"0 emails" messages a day, and the channel would stop being read.
+
 ## Safety
 
 The risk here is not a wrong label. It is a **hidden** email.
@@ -335,8 +401,7 @@ trusted, since labelling everything now bakes in today's error rate.
 
 | Gap | Where it lands |
 |---|---|
-| No Slack logging | Next. One card per run to `#tars_logs` — counts, breakdown, undecided, drafts written |
-| No `needs_reply` label | The label exists (`Label_10`) but nothing applies it. It belongs after `create_draft`, so it means "a draft is waiting" rather than "a human sent this" |
+| No `needs_reply` label | Gmail already shows a Draft chip on any thread carrying one, so a label would duplicate the UI |
 | No archiving | Deliberate. `newsletter` only, once the labels are trusted |
 | Nothing in Obsidian | `mail_digest` → `dashboard/mail_tracker.md` |
 | No chat access | `mail_agent`, its own trigger and system message |
