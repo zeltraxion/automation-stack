@@ -615,9 +615,11 @@ Recording these so they do not get relitigated.
 4. ~~Test the full loop across a container restart~~ **Done and passing** — a fact stated before `docker compose restart` is recalled after it.
 5. ~~**Phase 4.1 — build the mail organizer.**~~ **Done, labels and drafts.** `mail_label_draft` on a 30-minute schedule, calling `mail_categorizer` for classification. It labels every fetched email and writes a Gmail draft for the one or two a person is waiting on. Nothing is archived, deleted or sent. Classification accuracy sits around 16–17 of 20 and plateaued after two rounds of category-description tuning, which is why sender history was pulled forward from "later" into v1. See `docs/mail_label_draft.md` and `docs/mail_categorizer.md`.
 
-6. **Finish the mail domain.** *Next action*, in this order: Slack logging to `#tars_logs` so a run is legible without opening Gmail; the `needs_reply` label applied after a draft exists, so it means "a draft is waiting"; the archive step for `newsletter` only; then `mail_digest` → `dashboard/mail_tracker.md` and `mail_agent`.
+6. ~~**Slack logging and failure alerting.**~~ **Done.** `label_success` and `draft_success` post green cards to `#tars_logs`; five nodes route failures to a red `error_logs` card on `#tars_alerts`; and `error_handler`, a two-node workflow on an Error Trigger, catches everything unhandled across all five production workflows. The Gmail nodes retry three times first. See `docs/error_handler.md`.
 
-7. **Phase 1.5 — surface stale memories.** Now load-bearing rather than optional: updating a memory is about 80% reliable when the user's wording differs from the stored summary, and the other 20% leaves a stale near-duplicate on disk. The scan is what catches those.
+7. **Finish the mail domain.** *Next action*, in this order: the archive step for `newsletter` only, once the labels have been watched for a week; then `mail_digest` → `dashboard/mail_tracker.md` and `mail_agent`. The `needs_reply` label was dropped — Gmail already shows a Draft chip on any thread carrying one.
+
+8. **Phase 1.5 — surface stale memories.** Now load-bearing rather than optional: updating a memory is about 80% reliable when the user's wording differs from the stored summary, and the other 20% leaves a stale near-duplicate on disk. The scan is what catches those.
 
    **Scope extended to cross-folder contradictions.** `briefing/` holds facts you wrote; `learned/` holds facts the agent saved. Nothing syncs between them and nothing should — the `:ro` mount on `briefing/` is what stops a model that misidentifies the target file one time in five from overwriting your own notes. But the agent can learn something in `learned/` that contradicts what you wrote in `briefing/`, and today nothing tells you.
 
@@ -626,7 +628,7 @@ Recording these so they do not get relitigated.
    A model pass is the second step, and only on pairs the deterministic stage already flagged — never the whole corpus. One pair per call, closed output set (`CONTRADICTS` / `CONSISTENT`) plus one line of explanation. That is the shape `qwen3:8b` handles well, and a nightly batch has no user waiting on it, so a wrong answer lands in a review file rather than in an answer you act on.
 
    Two rules from the start: **never auto-edit and never auto-delete** — the output is a report, and `briefing/` being `:ro` enforces half of that for free. And compare against `max(created, reviewed)` so a pair you have checked and stamped stops reappearing every night.
-8. Phase 3 — replace the chat trigger with Slack.
+9. Phase 3 — replace the chat trigger with Slack.
 
 ---
 
