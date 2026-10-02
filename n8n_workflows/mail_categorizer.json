@@ -321,7 +321,7 @@
           "categories": [
             {
               "category": "security",
-              "description": "Account security and access. Login alerts, new device sign-ins, password resets, verification codes, one-time passwords, sign-in codes, email confirmations, 2FA codes, suspicious activity, breach notices. Also third-party apps, OAuth applications or connected services being granted access to an account. Any email containing a code used to log in or verify identity belongs here. Also warnings that an account, project, subscription or stored data will be suspended, deleted, expire or be permanently lost unless the user acts by a date. If the email is asking for a payment or a renewal, it is bills, not security."
+              "description": "Access to an account, or loss of it. Login alerts, new device sign-ins, password resets, verification codes, one-time passwords, sign-in codes, email confirmations, 2FA codes, suspicious activity, breach notices, third-party apps granted access to an account. Also warnings that an account, project, subscription or stored data will be suspended, deleted or permanently lost unless the user acts by a date. The test is whether access or data is at stake. If the email asks for a payment or a renewal, it is bills."
             },
             {
               "category": "bills",
@@ -333,11 +333,11 @@
             },
             {
               "category": "job_application",
-              "description": "Status of a job the user applied to, with nothing to schedule. Application received, under review, moved to next stage. Or a named human recruiter writing from a company address about a specific role. Never a job board."
+              "description": "Status of a job the user applied to, where the process is still open. Application received, under review, moved to the next stage, or a named human recruiter writing from a company address about a specific role. Never a job board. If the email says the process has ended or the user was not selected, it is job_rejected, not job_application."
             },
             {
               "category": "job_rejected",
-              "description": "An explicit rejection. The text must clearly state the user was not selected - \"unfortunately\", \"not moving forward\", \"other candidates\", \" decided not to proceed \". If unsure, this is not the category."
+              "description": "A job process that has ended with the user not selected. The decision must be stated, not implied - \"unfortunately\", \"not moving forward\", \"other candidates\", \"decided not to proceed\", \"will not be progressing\". Every rejection opens by thanking the user for applying, so the opening sentence proves nothing. Read for the decision. If any next step still exists, it is job_application or job_interview."
             },
             {
               "category": "job_alert",
@@ -349,7 +349,7 @@
             },
             {
               "category": "general",
-              "description": "Fits none of the above. Mail from a real person, or a one-off transactional notice about something the user did. Not marketing."
+              "description": "Fits none of the other categories. Mail from a real person, or a one-off transactional notice about something the user did. Nothing about account access or data loss, no money, no job, not marketing. Choose this only when no other category fits."
             },
             {
               "category": "orders",
@@ -360,7 +360,7 @@
         "options": {
           "multiClass": false,
           "fallback": "other",
-          "systemPromptTemplate": "You classify emails for a personal inbox. Classify the text provided by the user into one of the following categories: {categories}, and use the provided formatting instructions below. Don't explain, and only output the json.\n\nRules:\n- If the email concerns a job the user applied to, prefer a job_ category over general or newsletter.\n- Only choose job_rejected when the text explicitly states the user was not selected.\n- If the email asks the user to attend, schedule, or complete something by a date, prefer job_interview over job_application.\n- If two categories fit equally well, choose the one that keeps the email more visible.\n- Promotional or marketing mail is newsletter, even when sent by a bank or a service the user already uses.\n- An email containing a verification code, one-time password or sign-in code is always security.\n- If a line describes past mail from this sender, prefer that category unless this email clearly differs from it.",
+          "systemPromptTemplate": "You classify emails for a personal inbox. Classify the text provided by the user into one of the following categories: {categories}, and use the provided formatting instructions below. Don't explain, and only output the json.\n\nRules:\n- If the email concerns a job the user applied to, prefer a job_ category over general or newsletter.\n- Only choose job_rejected when the text explicitly states the user was not selected.\n- If the email asks the user to attend, schedule, or complete something by a date, prefer job_interview over job_application.\n- If two categories fit equally well, choose the one that keeps the email more visible.\n- Promotional or marketing mail is newsletter, even when sent by a bank or a service the user already uses.\n- An email containing a verification code, one-time password or sign-in code is always security.\n- If a line describes past mail from this sender, prefer that category unless this email clearly differs from it.\n- A job email is job_rejected only when the process has ended. If the user is still being considered, or any next step exists, it is job_application or job_interview.\n- security is about access to an account or loss of data. If neither is at stake, it is not security.",
           "batching": {
             "batchSize": 1
           }
@@ -630,7 +630,7 @@
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false
   },
-  "versionId": "8fa3a586-4093-402c-9f94-8ba652cba5e3",
+  "versionId": "6f5d91ca-e91f-4822-8987-839fc4b7eb71",
   "meta": {
     "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"
   },
