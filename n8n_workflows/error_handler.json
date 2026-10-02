@@ -1,0 +1,74 @@
+{
+  "name": "error_handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        -32
+      ],
+      "id": "c07ebc4c-034d-4ad0-bc91-b5cd03f15393",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0C32VB38H4",
+          "mode": "id"
+        },
+        "messageType": "block",
+        "blocksUi": "={\"attachments\":[{\"color\":\"#dc3545\",\"fallback\":\"workflow failed\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\":rotating_light:  *Workflow failed*\"}},{\"type\":\"section\",\"fields\":[{\"type\":\"mrkdwn\",\"text\":\"*Workflow*\\n`{{ $json.workflow?.name ?? 'unknown' }}`\"},{\"type\":\"mrkdwn\",\"text\":\"*Failed at*\\n`{{ $json.execution?.lastNodeExecuted ?? 'unknown' }}`\"}]},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*Error*\\n{{ JSON.stringify($json.execution?.error?.message ?? 'no message').slice(1,-1) }}\"}},{\"type\":\"context\",\"elements\":[{\"type\":\"mrkdwn\",\"text\":\"execution `{{ $json.execution?.id ?? '?' }}`  ·  {{ $json.execution?.url ?? 'no link' }}\"}]}]}]}",
+        "text": "=workflow failed: {{ $json.workflow?.name ?? 'unknown' }} at {{ $json.execution?.lastNodeExecuted ?? 'unknown' }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        16,
+        -32
+      ],
+      "id": "16de99a0-54c8-4e0d-b260-21edea981257",
+      "name": "Send a message",
+      "webhookId": "b8b69249-e5a1-4597-bfa1-20a61b2623cc",
+      "credentials": {
+        "slackApi": {
+          "id": "Evd3eBEncrme7O5O",
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "0feac650-656a-46ae-add6-1309dd7f2899",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"
+  },
+  "nodeGroups": [],
+  "id": "6eSlQKBSKH5m92AS",
+  "tags": []
+}

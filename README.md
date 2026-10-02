@@ -44,7 +44,7 @@
 
 <h2 align="center">🚀 Quick Start</h2>
 
-**Prerequisites:** Docker Desktop running, and `docker compose version` reporting v2 or newer. ⟦REVIEW⟧
+**Prerequisites:** Docker Desktop running, and `docker compose version` reporting v2 or newer.
 
 ```bash
 # 1. The volume is created by hand — it is declared `external` on purpose,
@@ -61,10 +61,10 @@ docker compose up -d
 docker compose logs -f n8n     # wait for "Editor is now accessible via..."
 ```
 
-Then open **http://localhost:5678** ⟦REVIEW src: docker-compose.yml, ports "127.0.0.1:5678:5678"⟧
+Then open **http://localhost:5678**
 
 > **Set the encryption key before the first boot.** n8n generates its own if you don't, writes it into the volume, and
-> then refuses to start if you later supply a different one. ⟦REVIEW src: n8n docs, "Set a custom encryption key"⟧
+> then refuses to start if you later supply a different one.
 
 ---
 
@@ -83,7 +83,7 @@ n8n-project/
 
 The split between `docker-compose.yml` and `.env` is deliberate: the compose file describes *what the infrastructure
 looks like*, and `.env` holds *what differs per machine*. Coolify reads the former from git and injects the latter from
-its own UI — so keeping values out of the compose file is what makes the migration a non-event. ⟦REVIEW⟧
+its own UI — so keeping values out of the compose file is what makes the migration a non-event.
 
 ---
 
@@ -91,7 +91,7 @@ its own UI — so keeping values out of the compose file is what makes the migra
 
 An Obsidian vault is mounted in as the control surface — you command from `control_plane`, n8n reports into `dashboard`,
 you brief the agent in `memory/briefing`, the agent remembers into `memory/learned`,
-and each folder has exactly one writer. ⟦REVIEW src: docker-compose.yml, volumes block⟧
+and each folder has exactly one writer.
 
 | Folder             | You                            | n8n           | Mounted as    |
 |--------------------|--------------------------------|---------------|---------------|
@@ -103,21 +103,20 @@ and each folder has exactly one writer. ⟦REVIEW src: docker-compose.yml, volum
 | `files/`           | read + write                   | read + write  | writable      |
 
 Three separate mechanisms are at work, and each protects something different — they do not stack on the same folder:
-⟦REVIEW⟧
 
 | Mechanism                                | What it actually protects                                                                                                                                                                                        |
 |------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Which folders are mounted**            | `notes/` is never mounted, so it does not exist inside the container. This is the **only** thing protecting your notes. ⟦REVIEW src: docker-compose.yml, volumes block — no entry for notes⟧                     |
-| **The `:ro` mount option**               | `control_plane/` is mounted read-only, so writes to it fail at the filesystem level, for every process in the container. ⟦REVIEW src: docker-compose.yml, `${VAULT_PATH}/control_plane:/vault/control_plane:ro`⟧ |
-| **`N8N_RESTRICT_FILE_ACCESS_TO=/vault`** | Workflow file operations are limited to paths under `/vault` — not `/tmp`, not n8n's own config directory. ⟦REVIEW src: docker-compose.yml, environment block⟧                                                   |
+| **Which folders are mounted**            | `notes/` is never mounted, so it does not exist inside the container. This is the **only** thing protecting your notes.                     |
+| **The `:ro` mount option**               | `control_plane/` is mounted read-only, so writes to it fail at the filesystem level, for every process in the container. |
+| **`N8N_RESTRICT_FILE_ACCESS_TO=/vault`** | Workflow file operations are limited to paths under `/vault` — not `/tmp`, not n8n's own config directory.                                                   |
 
 Two consequences worth being precise about. The allowlist grants `/vault` as a whole, so on its own it would happily
 permit writes to `control_plane/` — `:ro` is what prevents that. And neither the allowlist nor `:ro` has any bearing on
 `notes/`; that folder is safe purely because it was never handed to the container. Mount it and it becomes reachable,
-allowlist and all. ⟦REVIEW⟧
+allowlist and all.
 
 `VAULT_PATH` in `.env` points at the vault on this machine. The compose file never knows where it is — which is what
-lets the same file deploy elsewhere unchanged. ⟦REVIEW⟧
+lets the same file deploy elsewhere unchanged.
 
 ---
 
@@ -134,8 +133,6 @@ lets the same file deploy elsewhere unchanged. ⟦REVIEW⟧
 | **Ollama stays on the host**                   | Docker Desktop on macOS can't reach the Metal GPU, so a containerised Ollama would be CPU-only.              |
 
 </div>
-
-⟦REVIEW⟧
 
 ---
 
@@ -172,7 +169,11 @@ docker compose pull && docker compose up -d
 | Control plane — toggles in Obsidian gate real work         | ✅     |
 | Workflow exports committed to git                          | ✅     |
 | Automated workflow export                                  | 🔜     |
-| A first real capability, replacing the test switches       | 🔜     |
+| A first real capability, replacing the test switches       | ✅     |
+| Long-term memory — save, recall, survives a restart        | ✅     |
+| Gmail auto-labelling on a schedule                         | ✅     |
+| Draft replies written locally, never sent                  | ✅     |
+| Mail digest into Obsidian, and a mail agent                | 🔜     |
 | Vault as its own private git repo                          | 🔜     |
 
 ### 🚀 Phase 2 — Production
@@ -193,7 +194,6 @@ docker compose pull && docker compose up -d
 
 The split is deliberate. Everything in Phase 1 runs on one machine with no public address, so mistakes cost nothing.
 Phase 2 adds the things that only make sense once something is reachable from the internet and expected to stay up.
-⟦REVIEW⟧
 
 ---
 

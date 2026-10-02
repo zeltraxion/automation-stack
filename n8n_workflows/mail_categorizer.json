@@ -1,0 +1,640 @@
+{
+  "name": "mail_categorizer",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7e907023-428e-4f51-bffb-e0f743956aa7",
+              "name": "category",
+              "value": "security",
+              "type": "string"
+            },
+            {
+              "id": "7a815a2a-a1ff-4014-ac60-0e236c2388c5",
+              "name": "labelId",
+              "value": "Label_7",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        0,
+        0
+      ],
+      "id": "993c7148-cee9-4061-b4cc-fb52b4e649cb",
+      "name": "cat_security"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c0000000-0000-4000-8000-000000000021",
+              "name": "category",
+              "value": "bills",
+              "type": "string"
+            },
+            {
+              "id": "c0000000-0000-4000-8000-000000000022",
+              "name": "labelId",
+              "value": "Label_6",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        0,
+        576
+      ],
+      "id": "66afdc49-7e0d-4fbf-af02-3cefb601cc1c",
+      "name": "cat_bills"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c0000000-0000-4000-8000-000000000031",
+              "name": "category",
+              "value": "job_interview",
+              "type": "string"
+            },
+            {
+              "id": "c0000000-0000-4000-8000-000000000032",
+              "name": "labelId",
+              "value": "Label_12",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        0,
+        384
+      ],
+      "id": "a9f7f2df-af10-4f50-a6a0-6e378620022f",
+      "name": "cat_job_interview"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c0000000-0000-4000-8000-000000000041",
+              "name": "category",
+              "value": "job_application",
+              "type": "string"
+            },
+            {
+              "id": "c0000000-0000-4000-8000-000000000042",
+              "name": "labelId",
+              "value": "Label_3",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        0,
+        192
+      ],
+      "id": "eed285a0-9d56-441f-b9c2-353413f28409",
+      "name": "cat_job_application"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c0000000-0000-4000-8000-000000000051",
+              "name": "category",
+              "value": "job_rejected",
+              "type": "string"
+            },
+            {
+              "id": "c0000000-0000-4000-8000-000000000052",
+              "name": "labelId",
+              "value": "Label_4",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        0,
+        960
+      ],
+      "id": "392b0379-3006-4f48-90c8-21a738a85cc3",
+      "name": "cat_job_rejected"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c0000000-0000-4000-8000-000000000061",
+              "name": "category",
+              "value": "job_alert",
+              "type": "string"
+            },
+            {
+              "id": "c0000000-0000-4000-8000-000000000062",
+              "name": "labelId",
+              "value": "Label_5",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        0,
+        1152
+      ],
+      "id": "6f71a88d-fbe3-4017-8083-f886540fe790",
+      "name": "cat_job_alert"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c0000000-0000-4000-8000-000000000071",
+              "name": "category",
+              "value": "newsletter",
+              "type": "string"
+            },
+            {
+              "id": "c0000000-0000-4000-8000-000000000072",
+              "name": "labelId",
+              "value": "Label_8",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        0,
+        768
+      ],
+      "id": "4425d91e-3036-4939-a07e-ca0880209e59",
+      "name": "cat_newsletter"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c0000000-0000-4000-8000-000000000081",
+              "name": "category",
+              "value": "general",
+              "type": "string"
+            },
+            {
+              "id": "c0000000-0000-4000-8000-000000000082",
+              "name": "labelId",
+              "value": "Label_9",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        0,
+        1344
+      ],
+      "id": "7d2a3194-bb20-40f6-ad77-e451101c2221",
+      "name": "cat_general"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c0000000-0000-4000-8000-000000000091",
+              "name": "category",
+              "value": "other",
+              "type": "string"
+            },
+            {
+              "id": "c0000000-0000-4000-8000-000000000092",
+              "name": "labelId",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        0,
+        1728
+      ],
+      "id": "c14bc20f-5dfc-4b70-931f-f9365f290873",
+      "name": "cat_other"
+    },
+    {
+      "parameters": {
+        "numberInputs": 10
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        576,
+        736
+      ],
+      "id": "b3a7b1ce-d992-4b35-bbf1-85e30f5c563d",
+      "name": "merge_branches"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c0000000-0000-4000-8000-000000000091",
+              "name": "category",
+              "value": "orders",
+              "type": "string"
+            },
+            {
+              "id": "c0000000-0000-4000-8000-000000000092",
+              "name": "labelId",
+              "value": "Label_13",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        0,
+        1536
+      ],
+      "id": "0eb8376e-d5d9-4a87-93d4-18cc169da0ea",
+      "name": "cat_orders"
+    },
+    {
+      "parameters": {
+        "inputText": "=From: {{ $json.From }}\nSubject: {{ $json.Subject }}\n{{ $json.body }}\n{{ $json.senderHint }}",
+        "categories": {
+          "categories": [
+            {
+              "category": "security",
+              "description": "Access to an account, or loss of it. Login alerts, new device sign-ins, password resets, verification codes, one-time passwords, sign-in codes, email confirmations, 2FA codes, suspicious activity, breach notices, third-party apps granted access to an account. Also warnings that an account, project, subscription or stored data will be suspended, deleted or permanently lost unless the user acts by a date. The test is whether access or data is at stake. If the email asks for a payment or a renewal, it is bills."
+            },
+            {
+              "category": "bills",
+              "description": "Money owed or paid. Invoices, receipts, payment confirmations, subscription renewals, due dates, bank and card statements. An order confirmation from a shop is orders, even though it involves a payment."
+            },
+            {
+              "category": "job_interview",
+              "description": "A job process needing the user at a time or place. Interview invitations, scheduling links, assessments or tests to complete, availability requests, call logistics."
+            },
+            {
+              "category": "job_application",
+              "description": "Status of a job the user applied to, where the process is still open. Application received, under review, moved to the next stage, or a named human recruiter writing from a company address about a specific role. Never a job board. If the email says the process has ended or the user was not selected, it is job_rejected, not job_application."
+            },
+            {
+              "category": "job_rejected",
+              "description": "A job process that has ended with the user not selected. The decision must be stated, not implied - \"unfortunately\", \"not moving forward\", \"other candidates\", \"decided not to proceed\", \"will not be progressing\". Every rejection opens by thanking the user for applying, so the opening sentence proves nothing. Read for the decision. If any next step still exists, it is job_application or job_interview."
+            },
+            {
+              "category": "job_alert",
+              "description": "Automated job listings sent in bulk. Job boards and careers systems - Glassdoor, LinkedIn, Naukri, Indeed, Monster, Capgemini. Mail from a job board is job_alert even when the subject is personalised, names one company, or says the user would be a great fit. The email must contain actual job openings or roles to apply to. Conferences, events, courses and training promotions are not job_alert. A notification that a person messaged, connected with, viewed or reacted to the user on a social or professional network is not job_alert, even when it comes from a job board's domain."
+            },
+            {
+              "category": "newsletter",
+              "description": "Bulk content and marketing. Blogs, digests, product updates, promotions, offers, event invitations, announcements. Includes promotional mail from banks, apps and services the user already uses - new features, app downloads, branch hours, offers. Nothing is required of the user. Not transactional notices about the user's own account activity, balances, or usage."
+            },
+            {
+              "category": "general",
+              "description": "Fits none of the other categories. Mail from a real person, or a one-off transactional notice about something the user did. Nothing about account access or data loss, no money, no job, not marketing. Choose this only when no other category fits."
+            },
+            {
+              "category": "orders",
+              "description": "A specific purchase the user made from a shop. Order confirmation, dispatch or shipping notice, out for delivery, delivered, return, exchange or refund status, cancellation. Amazon, Flipkart, Myntra, Swiggy, Zomato, Blinkit. Not promotional mail from a shop, that is newsletter."
+            }
+          ]
+        },
+        "options": {
+          "multiClass": false,
+          "fallback": "other",
+          "systemPromptTemplate": "You classify emails for a personal inbox. Classify the text provided by the user into one of the following categories: {categories}, and use the provided formatting instructions below. Don't explain, and only output the json.\n\nRules:\n- If the email concerns a job the user applied to, prefer a job_ category over general or newsletter.\n- Only choose job_rejected when the text explicitly states the user was not selected.\n- If the email asks the user to attend, schedule, or complete something by a date, prefer job_interview over job_application.\n- If two categories fit equally well, choose the one that keeps the email more visible.\n- Promotional or marketing mail is newsletter, even when sent by a bank or a service the user already uses.\n- An email containing a verification code, one-time password or sign-in code is always security.\n- If a line describes past mail from this sender, prefer that category unless this email clearly differs from it.\n- A job email is job_rejected only when the process has ended. If the user is still being considered, or any next step exists, it is job_application or job_interview.\n- security is about access to an account or loss of data. If neither is at stake, it is not security.",
+          "batching": {
+            "batchSize": 1
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.textClassifier",
+      "typeVersion": 1.1,
+      "position": [
+        -672,
+        752
+      ],
+      "id": "2b1e4611-dfa4-41d0-a9d6-35a21497432c",
+      "name": "mail_categorizer"
+    },
+    {
+      "parameters": {
+        "model": "qwen3:8b",
+        "options": {
+          "think": false,
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmOllama",
+      "typeVersion": 1,
+      "position": [
+        -752,
+        1200
+      ],
+      "id": "802619ae-4d07-4934-98fd-473c9ae344d0",
+      "name": "ollama_mail",
+      "credentials": {
+        "ollamaApi": {
+          "id": "OvtIrdEDVnmEzTO5",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -912,
+        880
+      ],
+      "id": "41f17126-46e4-453a-84eb-81a736886de9",
+      "name": "When Executed by Another Workflow"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "cat_security": {
+      "main": [
+        [
+          {
+            "node": "merge_branches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cat_bills": {
+      "main": [
+        [
+          {
+            "node": "merge_branches",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "cat_job_interview": {
+      "main": [
+        [
+          {
+            "node": "merge_branches",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "cat_job_application": {
+      "main": [
+        [
+          {
+            "node": "merge_branches",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "cat_job_rejected": {
+      "main": [
+        [
+          {
+            "node": "merge_branches",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "cat_job_alert": {
+      "main": [
+        [
+          {
+            "node": "merge_branches",
+            "type": "main",
+            "index": 5
+          }
+        ]
+      ]
+    },
+    "cat_newsletter": {
+      "main": [
+        [
+          {
+            "node": "merge_branches",
+            "type": "main",
+            "index": 6
+          }
+        ]
+      ]
+    },
+    "cat_general": {
+      "main": [
+        [
+          {
+            "node": "merge_branches",
+            "type": "main",
+            "index": 7
+          }
+        ]
+      ]
+    },
+    "cat_other": {
+      "main": [
+        [
+          {
+            "node": "merge_branches",
+            "type": "main",
+            "index": 8
+          }
+        ]
+      ]
+    },
+    "cat_orders": {
+      "main": [
+        [
+          {
+            "node": "merge_branches",
+            "type": "main",
+            "index": 9
+          }
+        ]
+      ]
+    },
+    "mail_categorizer": {
+      "main": [
+        [
+          {
+            "node": "cat_security",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "cat_bills",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "cat_job_interview",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "cat_job_application",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "cat_job_rejected",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "cat_job_alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "cat_newsletter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "cat_general",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "cat_orders",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "cat_other",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ollama_mail": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "mail_categorizer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "mail_categorizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "6eSlQKBSKH5m92AS",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "6f5d91ca-e91f-4822-8987-839fc4b7eb71",
+  "meta": {
+    "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"
+  },
+  "nodeGroups": [],
+  "id": "aHXu3XwAQWA63AXJ",
+  "tags": []
+}

@@ -1,0 +1,651 @@
+{
+  "name": "mail_label_draft",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -5440,
+        2432
+      ],
+      "id": "9b6731bc-88b0-4d92-adae-b37e8205c327",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 25,
+        "simple": false,
+        "filters": {
+          "q": "-label:sorted in:inbox newer_than:7d"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -4768,
+        2464
+      ],
+      "id": "08c48883-17fa-42cd-8169-d0e282fd6242",
+      "name": "fetch_mail",
+      "webhookId": "b8ed7da7-769f-409a-abd1-4edf8f333807",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "mjM40zjHqlK2BaBE",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const seen = new Set(); // Empty list of emails already handled\nconst out = []; // Empty basket for finished emails\n\n/**\n * Every email from all nine branches\n * Go through them one by one\n * \"item\" = current email\n */\nfor (const item of $input.all()) {\n  const id = item.json.id; // Grab this mail's Gmail ID\n\n  /**\n   * One email can come out of two branches, Keep first\n   * if this mail ID already seen = skip and continue\n   * otherwise add to set\n   */\n  if (seen.has(id)) continue;\n  seen.add(id);\n\n  /**\n   * List of tags\n   * \"sorted\" -> every email came out of two branches earlier\n   */\n  const labels = ['Label_11'] // \"sorted\", always\n\n  /**\n   * Did cat_* node put label ID on the mail?\n   * yes = add to list\n   * cat_other leaves it empty\n   * undecided emails get only sorted, no category tag\n   */\n  if (item.json.labelId) labels.push(item.json.labelId);\n\n\n  /**\n   * Put email in basket\n   * \"...item.json\" -> spread operator\n   * new field added = labelsToAdd\n   */\n  out.push({json: {...item.json, labelsToAdd: labels} });\n  \n}\n\nreturn out; // Get basket to pass to next node"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4096,
+        2256
+      ],
+      "id": "415833c2-e712-4fa1-92fa-07f46234a562",
+      "name": "dedupe_and_flag"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -5440,
+        2624
+      ],
+      "id": "66f74629-1584-43d1-9139-2fb0fc45b4d6",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const map = $('build_sender_map').first().json.senderMap ?? {};\n\nreturn $input.all().map(item => {\n  const j = item.json;\n\n  const body = (j.text ?? '')\n    .replace(/https?:\\/\\/\\S+/g, '')   // tracking links, no signal, lots of tokens\n    .replace(/\\s+/g, ' ')             // collapse the newline soup\n    .trim()\n    .slice(0, 700);                   // enough to reach the actual point\n\n  const From = j.from?.text ?? '';\n\n  // Same address extraction as build_sender_map, so the keys match\n  const addr = From.match(/[\\w.+-]+@[\\w.-]+/)?.[0]?.toLowerCase();\n  const hit = addr ? map[addr] : null;\n\n  const senderHint = hit\n    ? `Past mail from this sender: ${hit.n} of ${hit.total} were ${hit.top}.`\n    : '';\n\n  return{\n    json: {\n      id: j.id,\n      threadId: j.threadId,\n      labelIds: j.labelIds,\n      internalDate: j.date,\n      Subject: j.subject,\n      From,\n      body,\n      senderHint,\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4544,
+        2384
+      ],
+      "id": "738b83b9-3c80-46dd-b987-7841c8a4106f",
+      "name": "trim_body"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 100,
+        "filters": {
+          "q": "label:sorted"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -5216,
+        2528
+      ],
+      "id": "2701b919-8169-4863-a6f4-c950e4f22836",
+      "name": "history_lookup",
+      "webhookId": "408271f7-1f51-4df1-aa4e-dc190f02d124",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "mjM40zjHqlK2BaBE",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const counts = {};   // sender -> { category -> count }\n\nfor (const item of $input.all()) {\n  // \"Glassdoor Jobs <noreply@glassdoor.com>\" -> \"noreply@glassdoor.com\"\n  const from = (item.json.From ?? '').match(/[\\w.+-]+@[\\w.-]+/)?.[0]?.toLowerCase();\n  if (!from) continue;\n\n  for (const l of item.json.labels ?? []) {\n    // Ours all have Label_ ids. INBOX / UNREAD / CATEGORY_* don't. sorted is plumbing.\n    if (!l.id.startsWith('Label_') || l.name === 'sorted') continue;\n\n    // \"jobs/alert\" -> \"job_alert\", to match the classifier's category names\n    const cat = l.name.startsWith('jobs/') ? 'job_' + l.name.slice(5) : l.name;\n\n    counts[from] ??= {};\n    counts[from][cat] = (counts[from][cat] ?? 0) + 1;\n  }\n}\n\nconst senderMap = {};\n\nfor (const [from, byCat] of Object.entries(counts)) {\n  const [top, n] = Object.entries(byCat).sort((a, b) => b[1] - a[1])[0];\n  const total = Object.values(byCat).reduce((s, x) => s + x, 0);\n\n  // Needs real history and clear agreement before we trust it\n  if (total >= 3 && n / total >= 0.8) senderMap[from] = { top, n, total };\n}\n\nreturn [{ json: { senderMap } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4992,
+        2464
+      ],
+      "id": "ae90524d-db31-4237-99c0-34f585233949",
+      "name": "build_sender_map"
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $json.id }}",
+        "labelIds": "={{ $json.labelsToAdd }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -2944,
+        2208
+      ],
+      "id": "cbc6d991-ed72-4353-8d9a-ec268dc3c56f",
+      "name": "apply_labels",
+      "webhookId": "ccb97573-a7ac-4966-a66c-3598e8194532",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "mjM40zjHqlK2BaBE",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Only these categories can need a reply\nconst REPLYABLE = ['general', 'job_application', 'job_interview'];\n\n// Words that mean nobody reads that mailbox\nconst BULK_WORDS = [\n  'noreply', 'no-reply', 'donotreply', 'do-not-reply', 'no_reply', 'dontreply',\n  'automated', 'autoreply', 'auto-reply', 'daemon', 'mailer-daemon', 'robot',\n  'notification', 'notifications', 'notify', 'alert', 'alerts',\n  'newsletter', 'news', 'info', 'information', 'updates', 'status',\n  'billing', 'invoice', 'receipts', 'orders', 'account', 'verify', 'verification',\n  'feedback', 'survey',\n];\n\nreturn $input.all().filter(item => {\n  if (!REPLYABLE.includes(item.json.category)) return false;\n\n  // \"Instahyre.com <noreply@instahyre.com>\"  ->  \"noreply\"\n  const from = (item.json.From ?? '').toLowerCase();\n  /**\n   * John Doe <john.doe@gmail.com>\n   * ['john doe ', 'john.doe@gmail.com>']\n   * 'john.doe@gmail.com>'\n   * john.doe\n   */\n  const mailbox = (from.split('<').pop() ?? from).split('@')[0];\n\n  /**\n   * Checks if any word inside the mailbox name generated\n   * .some() ->run for every word in the list, return true moment one matches, false if none\n   * The ! flips it: a match means machine, which means DON'T keep\n   */\n  return !BULK_WORDS.some(word => mailbox.includes(word));\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3872,
+        2480
+      ],
+      "id": "5afb21de-49e6-4dc5-9ee6-b477c6b792b2",
+      "name": "filter_repliable"
+    },
+    {
+      "parameters": {
+        "inputText": "=From: {{ $json.From }}\nSubject: {{ $json.Subject }}\n{{ $json.body }}",
+        "categories": {
+          "categories": [
+            {
+              "category": "needs_reply",
+              "description": "The sender is waiting for an answer. A question, a request for information, availability, a decision, a document, or a confirmation from the user. Something is expected back."
+            },
+            {
+              "category": "no_reply_needed",
+              "description": "Nothing is expected back. Confirmations, receipts, rejections, thank-yous, status updates, announcements, FYIs, \"no action required\"."
+            }
+          ]
+        },
+        "options": {
+          "multiClass": false,
+          "fallback": "other",
+          "systemPromptTemplate": "You decide whether an email needs a reply from the user. Classify the text provided by the user into one of the following categories: {categories}, and use the provided formatting instructions below.\nDon't explain, and only output the json.\n\nRules:\n- Ask what the sender wants. If they want information, a decision, a time, or a document from the user, it needs a reply.\n- A polite closing line such as \"let me know if you have any questions\" is not a request. On its own it does not need a reply.\n- A rejection needs no reply, even when it thanks the user or invites future contact.\n- A confirmation, receipt or delivery update needs no reply.\n- If the email states that no action is needed, believe it.\n- When genuinely unsure, choose no_reply_needed.",
+          "batching": {
+            "batchSize": 1
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.textClassifier",
+      "typeVersion": 1.1,
+      "position": [
+        -3648,
+        2480
+      ],
+      "id": "c68b17f2-4fa6-411b-afe3-fc58df3c61d6",
+      "name": "reply_check"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=From: {{ $json.From }}\nSubject: {{ $json.Subject }}\n\n{{ $json.body }}\n\nWrite only the reply body. Use [PLACEHOLDERS] for anything about Swapnil you do not know.",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You write the body of an email reply for Swapnil. Nothing else.\n\nYou do not know Swapnil's availability, notice period, salary, address,\nschedule or opinions. Never state any of them. Write a named placeholder\nin square brackets instead, like [YOUR AVAILABILITY]. Never write a bare\n[PLACEHOLDER].\n\nOutput rules:\n- Begin at \"Hi\". No preamble, no subject line, no remarks to the reader.\n- Plain text only. No asterisks, no ---, no headings, no bullets.\n- Be specific and direct. No filler like \"I hope this email finds you\n  well\" or \"I am writing to you regarding\".\n- Answer only what the email actually asks. Never raise a topic it did\n  not raise.\n- Three short paragraphs at most. End with \"Best regards,\" and nothing\n  after it. Do not sign off with a name.\n\nCopy the format of these examples, never their content.\n\nEmail: Anita asks for availability next week and notice period.\nOutput:\nHi Anita,\n\nThanks for getting in touch. I am available [YOUR AVAILABILITY].\n\nMy notice period is [YOUR NOTICE PERIOD].\n\nBest regards,\n\nEmail: Ravi asks whether Swapnil can review a document before Friday.\nOutput:\nHi Ravi,\n\nHappy to take a look. I should be able to get to it [YOUR TIMELINE].\n\nBest regards,"
+            }
+          ]
+        },
+        "batching": {
+          "batchSize": 1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -3296,
+        2480
+      ],
+      "id": "1b6e6152-b9d1-4099-811c-ffdd2f52e776",
+      "name": "write_draft"
+    },
+    {
+      "parameters": {
+        "model": "qwen3:8b",
+        "options": {
+          "think": false,
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmOllama",
+      "typeVersion": 1,
+      "position": [
+        -3584,
+        2752
+      ],
+      "id": "b9331e3e-2f67-4ad8-83e6-4abbf0d25c2f",
+      "name": "ollama_reply",
+      "credentials": {
+        "ollamaApi": {
+          "id": "OvtIrdEDVnmEzTO5",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=Re: {{ $('reply_check').item.json.Subject }}",
+        "message": "={{ $json.text }}",
+        "options": {
+          "threadId": "={{ $('reply_check').item.json.threadId }}",
+          "sendTo": "={{ $('reply_check').item.json.From }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -2944,
+        2480
+      ],
+      "id": "0e121af1-8871-453c-9692-2b68b4e0edca",
+      "name": "create_draft",
+      "webhookId": "9d70232e-fc67-42cc-8f76-a2b605c8089c",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "mjM40zjHqlK2BaBE",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "aHXu3XwAQWA63AXJ",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/aHXu3XwAQWA63AXJ",
+          "cachedResultName": "mail_categorizer"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -4320,
+        2384
+      ],
+      "id": "f632e1a9-972a-4a01-b940-5a46be682aff",
+      "name": "mail_categorizer",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0C32VB38H4",
+          "mode": "id"
+        },
+        "messageType": "block",
+        "blocksUi": "={\"attachments\":[{\"color\":\"#dc3545\",\"fallback\":\"mail step failed\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\":rotating_light:  *Mail step failed*\"}},{\"type\":\"section\",\"fields\":[{\"type\":\"mrkdwn\",\"text\":\"*Workflow*\\n`{{ $workflow.name }}`\"},{\"type\":\"mrkdwn\",\"text\":\"*Node*\\n`{{ $json.error?.node?.name ?? 'see execution' }}`\"}]},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*Error*\\n{{ JSON.stringify($json.error?.message ?? $json.error ?? 'no message').slice(1,-1) }}\"}},{\"type\":\"context\",\"elements\":[{\"type\":\"mrkdwn\",\"text\":\"execution `{{ $execution.id }}`  ·  http://localhost:5678/workflow/{{ $workflow.id }}/executions/{{ $execution.id }}\"}]}]}]}",
+        "text": "=mail step failed: {{ JSON.stringify($json.error?.message ?? 'unknown').slice(1,-1) }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        -2720,
+        2624
+      ],
+      "id": "c22ec586-aa26-4d30-87db-416a256d3f3e",
+      "name": "error_logs",
+      "webhookId": "dbfde899-31d6-4793-aa55-756cdf8077d1",
+      "credentials": {
+        "slackApi": {
+          "id": "Evd3eBEncrme7O5O",
+          "name": "Slack account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -2720,
+        2160
+      ],
+      "id": "a356ab62-fc6f-4d66-95eb-9685139594c2",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AN74FTGA0",
+          "mode": "id"
+        },
+        "messageType": "block",
+        "blocksUi": "={\"attachments\":[{\"color\":\"#2eb886\",\"fallback\":\"draft written\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\":pencil:  *Draft written*\"}},{\"type\":\"section\",\"fields\":[{\"type\":\"mrkdwn\",\"text\":\"*To*\\n{{ JSON.stringify($('reply_check').item.json.From ?? 'unknown').slice(1,-1) }}\"},{\"type\":\"mrkdwn\",\"text\":\"*Subject*\\n{{ JSON.stringify($('reply_check').item.json.Subject ?? 'unknown').slice(1,-1) }}\"}]},{\"type\":\"context\",\"elements\":[{\"type\":\"mrkdwn\",\"text\":\"`mail_label_draft`  ·  draft only, never sent  ·  check the thread in Gmail\"}]}]}]}",
+        "text": "=draft written for: {{ JSON.stringify($('reply_check').item.json.Subject ?? 'unknown').slice(1,-1) }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        -2720,
+        2848
+      ],
+      "id": "81b8aed3-a500-4f41-98d0-de1f2e28ca64",
+      "name": "draft_success",
+      "webhookId": "dbfde899-31d6-4793-aa55-756cdf8077d1",
+      "credentials": {
+        "slackApi": {
+          "id": "Evd3eBEncrme7O5O",
+          "name": "Slack account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AN74FTGA0",
+          "mode": "id"
+        },
+        "messageType": "block",
+        "blocksUi": "={\"attachments\":[{\"color\":\"#2eb886\",\"fallback\":\"mail sorted\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\":inbox_tray:  *Mail sorted*\"}},{\"type\":\"section\",\"fields\":[{\"type\":\"mrkdwn\",\"text\":\"*Sorted*\\n`{{ $('dedupe_and_flag').all().length }}`\"},{\"type\":\"mrkdwn\",\"text\":\"*Undecided*\\n`{{ $('dedupe_and_flag').all().filter(i=>i.json.category==='other').length }}`\"}]},{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*Breakdown*\\n{{ Object.entries($('dedupe_and_flag').all().reduce((a,i)=>{const c=i.json.category||'unknown';a[c]=(a[c]||0)+1;return a},{})).sort((a,b)=>b[1]-a[1]).map(([c,n])=>n+' '+c).join('  ·  ') }}\"}},{\"type\":\"context\",\"elements\":[{\"type\":\"mrkdwn\",\"text\":\"`mail_label_draft`  ·  {{ $('dedupe_and_flag').all().filter(i=>i.json.senderHint).length }} had sender history  ·  labels only, nothing archived\"}]}]}]}",
+        "text": "=mail sorted: {{ $('dedupe_and_flag').all().length }} email(s)",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        -2496,
+        2160
+      ],
+      "id": "e225779b-3d8d-44c6-8940-2e939c44868b",
+      "name": "label_success",
+      "webhookId": "dbfde899-31d6-4793-aa55-756cdf8077d1",
+      "credentials": {
+        "slackApi": {
+          "id": "Evd3eBEncrme7O5O",
+          "name": "Slack account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "history_lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch_mail": {
+      "main": [
+        [
+          {
+            "node": "trim_body",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error_logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "dedupe_and_flag": {
+      "main": [
+        [
+          {
+            "node": "apply_labels",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "filter_repliable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "history_lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "trim_body": {
+      "main": [
+        [
+          {
+            "node": "mail_categorizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "history_lookup": {
+      "main": [
+        [
+          {
+            "node": "build_sender_map",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error_logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "build_sender_map": {
+      "main": [
+        [
+          {
+            "node": "fetch_mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "filter_repliable": {
+      "main": [
+        [
+          {
+            "node": "reply_check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "reply_check": {
+      "main": [
+        [
+          {
+            "node": "write_draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ollama_reply": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "reply_check",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "write_draft",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "write_draft": {
+      "main": [
+        [
+          {
+            "node": "create_draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "mail_categorizer": {
+      "main": [
+        [
+          {
+            "node": "dedupe_and_flag",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error_logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "apply_labels": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error_logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_draft": {
+      "main": [
+        [
+          {
+            "node": "draft_success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error_logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "error_logs": {
+      "main": [
+        []
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "label_success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "6eSlQKBSKH5m92AS",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "c307a7d3-96c2-4d3a-b7ca-c12eb2867486",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"
+  },
+  "nodeGroups": [],
+  "id": "tCzqvauu1uCOzt8O",
+  "tags": []
+}
