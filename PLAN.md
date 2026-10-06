@@ -434,12 +434,12 @@ same `Message → Remove Label` node used to add one.
 Same split as `control_plane` and `dashboard`: one side acts, the other regenerates, and neither writes the other's
 files.
 
-**`mail_label_draft`** — built and published, Schedule Trigger every 30 minutes. It calls **`mail_categorizer_jev`**
+**`mail_label_draft`** — built and published, Schedule Trigger once a day at 21:00 IST. It calls **`mail_categorizer_jev`**
 as a sub-workflow for the classification half. Full node-by-node detail in `docs/mail_label_draft.md` and
 `docs/mail_categorizer_jev.md`; the shape as built:
 
 ```
-Schedule Trigger (30 min)
+Schedule Trigger (daily, 21:00 IST)
   → history_lookup      Gmail · q: label:sorted · 100 · Simplify ON
   → build_sender_map    Code · sender → usual category, 3+ emails and 80% agreement
   → fetch_mail          Gmail · q: -label:sorted in:inbox newer_than:7d · 25 · Simplify OFF
@@ -614,7 +614,7 @@ Recording these so they do not get relitigated.
 2. ~~**Build `memory_read`**~~ **Done — nine nodes, zero parameters.** The empty case turned out not to work as predicted: `Read/Write Files from Disk` never returns zero items, it returns `{ "error": "No file(s) found" }`, so `Always Output Data` guards nothing and combining it with `onError: continueErrorOutput` fires both branches at once. The node runs `continueRegularOutput` and an `If` branches on the item instead. See `docs/memory_read.md`.
 3. ~~Wire `memory_read` to the agent.~~ **Done.** `recall_memory`, no parameters, alongside `save_memory`.
 4. ~~Test the full loop across a container restart~~ **Done and passing** — a fact stated before `docker compose restart` is recalled after it.
-5. ~~**Phase 4.1 — build the mail organizer.**~~ **Done, labels and drafts.** `mail_label_draft` on a 30-minute schedule, calling `mail_categorizer` for classification. It labels every fetched email and writes a Gmail draft for the one or two a person is waiting on. Nothing is archived, deleted or sent. Classification accuracy sits around 16–17 of 20 and plateaued after two rounds of category-description tuning, which is why sender history was pulled forward from "later" into v1. See `docs/mail_label_draft.md` and `docs/mail_categorizer.md`.
+5. ~~**Phase 4.1 — build the mail organizer.**~~ **Done, labels and drafts.** `mail_label_draft` on a schedule, calling `mail_categorizer` for classification. It labels every fetched email and writes a Gmail draft for the one or two a person is waiting on. Nothing is archived, deleted or sent. Classification accuracy sits around 16–17 of 20 and plateaued after two rounds of category-description tuning, which is why sender history was pulled forward from "later" into v1. See `docs/mail_label_draft.md` and `docs/mail_categorizer.md`.
 
    ~~**Classification accuracy.**~~ **Addressed, by changing the instrument rather than the prompt.** The plateau held because a text generator returns a word and no measure of how sure it was, so each tuning round was flying blind. Ollama 0.35 added `/v1/systemone` for decision models, which pick from a supplied list and return a probability per option. `mail_categorizer_jev` replaces the Text Classifier with one HTTP Request to `nimble:9b` plus one Code node — three nodes for fourteen, because the ten `cat_*` Set nodes and the Merge existed only to collect routed branches. Measured on 25 real emails: **22 labelled, 3 held back, 0 confidently wrong**, against 3–4 silent mislabels per 20 before. Below a 0.6 confidence floor the email gets `sorted` and no category label, falling back to sender history when that address has one. The old workflow stays published as the rollback. See `docs/mail_categorizer_jev.md`.
 

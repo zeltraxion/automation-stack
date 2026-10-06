@@ -16,7 +16,7 @@ someone want an answer", and both halves are answerable locally.
 
 ```mermaid
 flowchart TD
-    T1["<b>Schedule Trigger</b><br/>every 30 min"]
+    T1["<b>Schedule Trigger</b><br/>daily · 21:00 IST"]
     T2["When clicking 'Execute workflow'<br/>manual, for testing"]
     H["<b>history_lookup</b><br/>Gmail · q: label:sorted · 100"]
     M["<b>build_sender_map</b><br/>sender → usual category"]
@@ -53,7 +53,7 @@ flowchart TD
     style G fill:#d4edda,stroke:#28a745
 ```
 
-Published, Schedule Trigger every 30 minutes. The manual trigger sits alongside it for testing and for deliberate
+Published, Schedule Trigger once a day at 21:00 IST. The manual trigger sits alongside it for testing and for deliberate
 backlog sweeps.
 
 Two branches leave `dedupe_and_flag`. The labelling branch handles every email; the draft branch handles the one or
@@ -314,8 +314,9 @@ coin flip.
 
 ### Quiet runs stay quiet
 
-When `fetch_mail` finds nothing, no items flow and no card posts. Otherwise a 30-minute schedule would produce 48
-"0 emails" messages a day, and the channel would stop being read.
+When `fetch_mail` finds nothing, no items flow and no card posts. Built when the schedule ran every 30 minutes, where
+48 "0 emails" messages a day would have stopped the channel being read. Less load-bearing on a daily schedule, but a
+quiet night still says nothing rather than posting a zero.
 
 ## Safety
 
@@ -393,7 +394,7 @@ header check remains available if address matching proves insufficient.
 | Per email, classification | ~16–18s, ~1,430 tokens |
 | Per email, draft | ~20s, only for emails passing all three gates |
 | Per run | 25 emails ≈ 7 minutes |
-| Schedule | every 30 minutes |
+| Schedule | daily, 21:00 IST |
 | Gmail quota | ~4,000 units/run against a 15,000/minute per-user limit |
 
 `history_lookup` fetches 100 messages every run whether or not there is new mail — nothing in quota terms, 20–40

@@ -199,6 +199,14 @@ Two clauses were added to target measured misses, and both landed:
 - `bills` — *"bank transaction alerts … UPI and card activity"* moved HDFC UPI alerts from `general` 0.749 to `bills`
   0.895, without dragging the HSBC UPI *cashback promo* out of `newsletter`
 
+**`general` was the vaguest of the nine, which made it a magnet.** The original wording — *"a one-off transactional
+notice about something the user did"* — describes a payment, an account change and a purchase equally well, so it
+overlapped `bills`, `security` and `orders` by construction and kept turning up as a strong runner-up on emails that
+belonged elsewhere. Rewritten to name what actually lands there: a real person writing, or a service notification
+that is not money, not account access, not a job and not a purchase — someone messaged or commented, a profile was
+created, a document was shared, a review was posted. Concrete examples in place of the abstract phrase, the same
+lever that worked on `bills`.
+
 ## `map_label` — Code, Run Once for Each Item
 
 Flattens `answers.category.choice` into `category`, applies the floor, maps to a label id, and glues the email fields

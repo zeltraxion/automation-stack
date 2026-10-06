@@ -107,5 +107,5 @@ duplicate.
 | Gap | Note |
 |---|---|
 | No severity levels | Every failure is red. A retry-exhausted Gmail blip and a broken credential look identical |
-| No deduplication | A workflow failing on every 30-minute run posts every 30 minutes |
+| No deduplication | A workflow failing on every run posts on every run |
 | No recovery | It reports. Anything that should keep running past a failure needs a per-node error output instead |
