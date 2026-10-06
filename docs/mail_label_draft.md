@@ -151,7 +151,11 @@ are separate things; the name stayed so the canvas and the wiring did not change
 [`mail_categorizer`](mail_categorizer.md) workflow is still published and is the rollback — set the Workflow field
 back and nothing else moves, because both return the same two fields.
 
-The new one also returns `confidence` and `needsReply`. Nothing downstream reads them yet.
+The new one also returns `confidence`. Nothing downstream reads it yet.
+
+**`reply_check` stays where it is.** The sub-workflow could answer the same question in the same request, but it would
+then run on all 25 emails instead of the 0–2 that survive `filter_repliable`. Two model calls are cheaper than
+twenty-five extra prefills — detail in [`mail_categorizer_jev.md`](mail_categorizer_jev.md).
 
 **Mode matters.** On `Run once for each item` the sub-workflow starts 25 separate times — 25 model startups instead of
 one batched run.

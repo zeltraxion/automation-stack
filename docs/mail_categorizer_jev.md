@@ -19,7 +19,7 @@ Three further consequences fell out of it:
 - **The ten Set nodes and the Merge disappear.** A Text Classifier routes to one output per category, so each branch
   needed a node to stamp `category` and `labelId`, and a Merge to collapse them. A decision model returns the answer as
   data in one item. The 10-input Merge cap that blocked a `travel` category goes with them.
-- **`needs_reply` rides along in the same request.** One model call where there were two.
+- **A second question can ride along in the same request** — the endpoint takes up to 64. Tried and removed; see below.
 - **Adding a category is one line of JSON**, not a new branch, a new Set node and a Merge input.
 
 ## Flow
@@ -47,18 +47,17 @@ body        trimmed plain text, URLs stripped
 senderHint  what this sender usually gets, or empty
 ```
 
-**Out:** the same items with four fields added.
+**Out:** the same items with three fields added.
 
 ```
 category    one of the nine names below, or "other"
 labelId     the matching Gmail label id, or "" for other
 confidence  0–1, how strongly one option won
-needsReply  0–1, whether the sender wants something back
 ```
 
 `category` and `labelId` are the contract `dedupe_and_flag` reads, unchanged from the old workflow — which is what made
-the swap a single field change in `mail_label_draft`. `confidence` and `needsReply` are new and nothing consumes them
-yet; they exist to be measured against.
+the swap a single field change in `mail_label_draft`. `confidence` is new; nothing consumes it yet, and it exists to be
+measured against.
 
 ## The categories
 
@@ -118,11 +117,13 @@ fallback, and gets `sorted` applied on the strength of a request that never succ
     "from": "…", "subject": "…", "body": "…", "sender_history": "…"
   },
   "questions": {
-    "category":    { "type": "choice", "instructions": "…", "criteria": { "…": "nine" } },
-    "needs_reply": { "type": "noul",   "instructions": "…" }
+    "category": { "type": "choice", "instructions": "…", "criteria": { "…": "nine" } }
   }
 }
 ```
+
+**One question, deliberately.** The endpoint takes up to 64, and a `needs_reply` question was carried here at first.
+It was removed because of where the work lands — see *Why there is only one question* below.
 
 **The four state values are built with `JSON.stringify`, not pasted raw.** Email bodies carry quotes and newlines;
 dropped in unescaped they break the JSON and the node fails with *"The value in the JSON Body field is not valid
@@ -131,8 +132,8 @@ JSON"*. `JSON.stringify` supplies the surrounding quotes too, which is why there
 **`state` is an object, not one string.** `instructions` can then point at a field by name — ``using `from`, `subject`
 and `body``` — which gives the model structure rather than a blob.
 
-**Question keys are arbitrary.** `category` and `needs_reply` are our names; the answer comes back under the same keys.
-`category` matches the downstream field so nothing needs translating.
+**Question keys are arbitrary.** `category` is our name; the answer comes back under the same key. It matches the
+downstream field so nothing needs translating.
 
 ### The response
 
@@ -145,13 +146,36 @@ and `body``` — which gives the model structure rather than a blob.
       "probabilities": { "job_rejected": 0.987, "job_application": 0.013 },
       "confidence": 0.969
     },
-    "needs_reply": { "type": "noul", "noul": 0.007 }
   },
   "usage": { "input_tokens": 1607, "output_tokens": 3 }
 }
 ```
 
 `output_tokens: 3` every time. The model is not writing anything — it is scoring the nine options you supplied.
+
+## Why there is only one question
+
+A `needs_reply` question was carried here at first, on the reasoning that one request answering two questions beats
+two separate model calls. The arithmetic says otherwise.
+
+From nimble's docs: *"Every question is scored with the full state and question set in its prompt."* Two questions
+means the state and all nine criteria are prefilled **twice** per email — `input_tokens` is already that doubled
+figure.
+
+And `mail_label_draft` answers the same question much further downstream, after `filter_repliable` has cut the batch
+with no model at all:
+
+```
+                       classification     reply question
+one question here      25 × 1 pass        reply_check on 0–2 emails   ← cheapest
+two questions here     25 × 2 passes      none
+```
+
+The reply question only ever applies to the handful of emails that survive two deterministic gates. Asking it here
+means asking it of all 25, so folding `reply_check` in would trade two model calls for twenty-five extra prefills.
+
+The three-gate design in `mail_label_draft` is what makes the draft branch affordable. Moving work in front of those
+gates undoes it.
 
 ## Why `nimble:9b`
 
@@ -259,7 +283,7 @@ Measured on 25 real emails, the same pinned set across every run:
 The last row is the one that matters. The old workflow applied a wrong label and gave no signal; this one declines.
 
 The three held back were an unrecognised ChatGPT promo (0.543), a LinkedIn invitation from a real recruiter (0.585,
-`needsReply` 0.80), and an HDFC "Account update" with an empty body whose probabilities split four ways (0.432). All
+0.585), and an HDFC "Account update" with an empty body whose probabilities split four ways (0.432). All
 three are genuinely ambiguous, and the numbers say so.
 
 **Errors remain low-stakes by design.** Nothing here archives, deletes or replies. A wrong label leaves the email in
@@ -269,8 +293,7 @@ the inbox with the wrong colour on it; a withheld label leaves it with no colour
 
 | Gap | Where it lands |
 |---|---|
-| `needsReply` is computed but unused | `reply_check` in `mail_label_draft` still runs its own Text Classifier. Folding it in removes a model call |
-| `needs_reply` over-fires on calls to action | CodeRabbit's "add the payment method" scored 0.873. Harmless today — `filter_repliable` only passes `general`, `job_application` and `job_interview` |
+| Classification runs on every fetched email | No gate stands in front of it, unlike the draft branch. Nothing cheaper has been found that still labels everything |
 | No `travel` category | One line of criteria and one map entry away. Nothing blocks it any more |
 | The floor is a fixed 0.6 | Not tuned per category. A `security` miss costs more than a `newsletter` miss |
 | Sender hint is supplied, not computed | The caller builds it; this workflow only reads it |

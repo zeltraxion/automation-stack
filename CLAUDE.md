@@ -254,6 +254,15 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
   measurement — 12 GB resident, swap at 94%, load average 17.4. 24 GB of RAM is the threshold that reopens the 22–24B
   tier. The two current models cannot be resident together on 16 GB, which is why `nimble` carries `keep_alive: "30s"`
   and gets evicted between runs. See `PLAN.md` §4.
+- **Each question re-reads the whole prompt, so questions are not free.** Ollama's docs: *"Every question is scored
+  with the full state and question set in its prompt."* Two questions prefill the state and all nine criteria twice,
+  so `input_tokens` is roughly double the material actually sent. Budget a question like a separate request that
+  happens to share a round trip.
+- **Do not move work in front of a deterministic gate.** `mail_categorizer_jev` carried a `needs_reply` question at
+  first, on the reasoning that one request answering two questions beats two model calls. Wrong: `reply_check` runs
+  *after* `filter_repliable` has cut 25 emails to 0–2 with no model at all, so folding it in would trade two model
+  calls for twenty-five extra prefills. The question was removed. The three gates are what make the draft branch
+  affordable.
 - **Ollama 0.35 added `/v1/systemone` for decision models.** Up to 64 named questions about one `state`, of type
   `choice` (2–26 options), `noul` (yes/no with a probability) or `score`. Request bodies cap at 64 KiB. n8n has no node
   for the endpoint, so it is a plain HTTP Request to `http://host.docker.internal:11434` — local, no credential.

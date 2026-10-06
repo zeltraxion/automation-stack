@@ -445,7 +445,7 @@ Schedule Trigger (daily, 21:00 IST)
   → fetch_mail          Gmail · q: -label:sorted in:inbox newer_than:7d · 25 · Simplify OFF
   → trim_body           Code · strip URLs, 700 chars, attach senderHint
   → mail_categorizer    sub-workflow → mail_categorizer_jev · nimble:9b decision model
-                        returns category + labelId + confidence + needsReply
+                        returns category + labelId + confidence
   → dedupe_and_flag     Code · one per id, build the label list
   ├─► apply_labels      Gmail · Add Label
   └─► filter_repliable  Code · category gate + sender address, no model
