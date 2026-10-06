@@ -1,5 +1,13 @@
 # mail_categorizer
 
+> [!WARNING]
+> **Superseded.** `mail_label_draft` now calls [`mail_categorizer_jev`](mail_categorizer_jev.md), which does the same
+> job with a decision model and returns a confidence score. This workflow is kept, unchanged and still published, as
+> the rollback: switching back is one field on the `mail_categorizer` node in `mail_label_draft`.
+>
+> The page stays because the reasoning below is still the reasoning for the category set, the label IDs and the
+> `other` behaviour — all of which carried over. Only the mechanism changed.
+
 Takes a batch of emails and decides what kind of mail each one is. Called as a sub-workflow by
 `mail_label_draft`; it never runs on its own schedule.
 

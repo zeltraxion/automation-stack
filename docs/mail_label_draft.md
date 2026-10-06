@@ -22,7 +22,7 @@ flowchart TD
     M["<b>build_sender_map</b><br/>sender → usual category"]
     F["<b>fetch_mail</b><br/>Gmail · q: -label:sorted in:inbox newer_than:7d · 25"]
     B["<b>trim_body</b><br/>strip URLs · 700 chars · attach senderHint"]
-    C["<b>mail_categorizer</b><br/>sub-workflow · returns category + labelId"]
+    C["<b>mail_categorizer</b><br/>sub-workflow → mail_categorizer_jev<br/>returns category + labelId + confidence"]
     D["<b>dedupe_and_flag</b><br/>one per id · build label list"]
     A["<b>apply_labels</b><br/>Gmail · Add Label"]
     R["<b>filter_repliable</b><br/>category gate + sender address"]
@@ -144,7 +144,14 @@ Wait For Sub-Workflow Completion: on
 ```
 
 Sends the batch out and gets it back with `category` and `labelId` added. Detail in
-[`mail_categorizer.md`](mail_categorizer.md).
+[`mail_categorizer_jev.md`](mail_categorizer_jev.md).
+
+**The node is named `mail_categorizer`, and what it dials is `mail_categorizer_jev`.** Node name and target workflow
+are separate things; the name stayed so the canvas and the wiring did not change. The old
+[`mail_categorizer`](mail_categorizer.md) workflow is still published and is the rollback — set the Workflow field
+back and nothing else moves, because both return the same two fields.
+
+The new one also returns `confidence` and `needsReply`. Nothing downstream reads them yet.
 
 **Mode matters.** On `Run once for each item` the sub-workflow starts 25 separate times — 25 model startups instead of
 one batched run.
