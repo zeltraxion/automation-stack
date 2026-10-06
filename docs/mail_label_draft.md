@@ -16,13 +16,13 @@ someone want an answer", and both halves are answerable locally.
 
 ```mermaid
 flowchart TD
-    T1["<b>Schedule Trigger</b><br/>every 30 min"]
+    T1["<b>Schedule Trigger</b><br/>daily · 21:00 IST"]
     T2["When clicking 'Execute workflow'<br/>manual, for testing"]
     H["<b>history_lookup</b><br/>Gmail · q: label:sorted · 100"]
     M["<b>build_sender_map</b><br/>sender → usual category"]
     F["<b>fetch_mail</b><br/>Gmail · q: -label:sorted in:inbox newer_than:7d · 25"]
     B["<b>trim_body</b><br/>strip URLs · 700 chars · attach senderHint"]
-    C["<b>mail_categorizer</b><br/>sub-workflow · returns category + labelId"]
+    C["<b>mail_categorizer</b><br/>sub-workflow → mail_categorizer_jev<br/>returns category + labelId + confidence"]
     D["<b>dedupe_and_flag</b><br/>one per id · build label list"]
     A["<b>apply_labels</b><br/>Gmail · Add Label"]
     R["<b>filter_repliable</b><br/>category gate + sender address"]
@@ -53,7 +53,7 @@ flowchart TD
     style G fill:#d4edda,stroke:#28a745
 ```
 
-Published, Schedule Trigger every 30 minutes. The manual trigger sits alongside it for testing and for deliberate
+Published, Schedule Trigger once a day at 21:00 IST. The manual trigger sits alongside it for testing and for deliberate
 backlog sweeps.
 
 Two branches leave `dedupe_and_flag`. The labelling branch handles every email; the draft branch handles the one or
@@ -144,7 +144,18 @@ Wait For Sub-Workflow Completion: on
 ```
 
 Sends the batch out and gets it back with `category` and `labelId` added. Detail in
-[`mail_categorizer.md`](mail_categorizer.md).
+[`mail_categorizer_jev.md`](mail_categorizer_jev.md).
+
+**The node is named `mail_categorizer`, and what it dials is `mail_categorizer_jev`.** Node name and target workflow
+are separate things; the name stayed so the canvas and the wiring did not change. The old
+[`mail_categorizer`](mail_categorizer.md) workflow is still published and is the rollback — set the Workflow field
+back and nothing else moves, because both return the same two fields.
+
+The new one also returns `confidence`. Nothing downstream reads it yet.
+
+**`reply_check` stays where it is.** The sub-workflow could answer the same question in the same request, but it would
+then run on all 25 emails instead of the 0–2 that survive `filter_repliable`. Two model calls are cheaper than
+twenty-five extra prefills — detail in [`mail_categorizer_jev.md`](mail_categorizer_jev.md).
 
 **Mode matters.** On `Run once for each item` the sub-workflow starts 25 separate times — 25 model startups instead of
 one batched run.
@@ -307,8 +318,9 @@ coin flip.
 
 ### Quiet runs stay quiet
 
-When `fetch_mail` finds nothing, no items flow and no card posts. Otherwise a 30-minute schedule would produce 48
-"0 emails" messages a day, and the channel would stop being read.
+When `fetch_mail` finds nothing, no items flow and no card posts. Built when the schedule ran every 30 minutes, where
+48 "0 emails" messages a day would have stopped the channel being read. Less load-bearing on a daily schedule, but a
+quiet night still says nothing rather than posting a zero.
 
 ## Safety
 
@@ -386,7 +398,7 @@ header check remains available if address matching proves insufficient.
 | Per email, classification | ~16–18s, ~1,430 tokens |
 | Per email, draft | ~20s, only for emails passing all three gates |
 | Per run | 25 emails ≈ 7 minutes |
-| Schedule | every 30 minutes |
+| Schedule | daily, 21:00 IST |
 | Gmail quota | ~4,000 units/run against a 15,000/minute per-user limit |
 
 `history_lookup` fetches 100 messages every run whether or not there is new mail — nothing in quota terms, 20–40

@@ -59,8 +59,7 @@
         "rule": {
           "interval": [
             {
-              "field": "minutes",
-              "minutesInterval": 30
+              "triggerAtHour": 21
             }
           ]
         }
@@ -278,10 +277,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "aHXu3XwAQWA63AXJ",
+          "value": "yINXrG1zdDC1epVr",
           "mode": "list",
-          "cachedResultUrl": "/workflow/aHXu3XwAQWA63AXJ",
-          "cachedResultName": "mail_categorizer"
+          "cachedResultUrl": "/workflow/yINXrG1zdDC1epVr",
+          "cachedResultName": "mail_categorizer_jev"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -640,7 +639,7 @@
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false
   },
-  "versionId": "c307a7d3-96c2-4d3a-b7ca-c12eb2867486",
+  "versionId": "34c86789-e014-48fa-8912-084f694bfed5",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"

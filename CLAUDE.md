@@ -142,9 +142,9 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
 - `VAULT_PATH` is referenced on **five lines** of `docker-compose.yml`. The vault is mounted: `control_plane` and
   `memory/briefing` read-only, `dashboard`, `files` and `memory/learned` writable. `notes/` is deliberately not mounted.
 
-- `n8n_workflows/` holds eight exports: `memory_agent.json`, `memory_write.json`, `memory_read.json`,
-  `mail_label_draft.json`, `mail_categorizer.json`, `error_handler.json`, `test_chat_LLM.json`,
-  `test_nodes_and_obsidian.json`.
+- `n8n_workflows/` holds nine exports: `memory_agent.json`, `memory_write.json`, `memory_read.json`,
+  `mail_label_draft.json`, `mail_categorizer_jev.json`, `mail_categorizer.json`, `error_handler.json`,
+  `test_chat_LLM.json`, `test_nodes_and_obsidian.json`.
 
 - `custom-nodes/` and `.github/workflows/` exist but are empty. Git does not track empty directories, so they will not
   survive a clone without `.gitkeep` files.
@@ -161,10 +161,41 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
   manually until Phase 1.5.
 - **Both production sub-workflows are live:** `memory_write` and `memory_read`, published, documented in
   `docs/memory_write.md` and `docs/memory_read.md`.
-- **The mail domain is live.** `mail_label_draft`, published, Schedule Trigger every 30 minutes, calls
+- **The mail domain is live.** `mail_label_draft`, published, Schedule Trigger once a day at 21:00 IST, calls
   `mail_categorizer` as a sub-workflow. It labels every fetched email into one of nine categories, and writes a Gmail
   draft for the one or two a person is actually waiting on. **Nothing is archived, deleted or sent** — drafts only,
-  deliberately, until accuracy is trusted. Documented in `docs/mail_label_draft.md` and `docs/mail_categorizer.md`.
+  deliberately, until accuracy is trusted. Documented in `docs/mail_label_draft.md` and
+  `docs/mail_categorizer_jev.md`.
+- **Classification runs on a decision model, not a Text Classifier.** `mail_categorizer_jev` posts to Ollama's
+  `/v1/systemone` with nine named options and gets back a choice plus a probability for every option. Three nodes
+  replace fourteen: the ten `cat_*` Set nodes and the Merge existed only because a Text Classifier routes instead of
+  returning data. The old `mail_categorizer` stays published as the rollback — one field on the Execute Sub-workflow
+  node, since both return the same `category` and `labelId`.
+- **A confidence number is the point, not the accuracy gain.** Measured on 25 real emails: 22 labelled, 3 held back,
+  **0 confidently wrong** — against 16–17 of 20 with 3–4 wrong labels silently applied. Below a 0.6 floor the model's
+  pick is discarded and the email gets `sorted` with no category label.
+- **Shorter category descriptions made it both faster and more accurate.** Cutting the nine from ~1,800 to ~550 tokens
+  halved wall clock (1m42s → 48s on six emails) and raised confidence. The long versions carried cross-references and
+  tie-break rules written to steer a text generator; a decision model scores all nine at once, so the probabilities
+  *are* the tie-break. Concrete nouns and brand names carry the weight.
+- **`nimble:9b` over `tev1:4b`, on context not quality.** A request with the original descriptions measured 2,195
+  input tokens, past tev1's ~2,000 context and past the ~1,500 it was trained on — and Ollama truncates silently.
+  nimble holds 8,192. It fits at `100% GPU` with `offloaded 33/33 layers`, but Ollama logs
+  `reason=metal_partial_offload` and disables mmap, so the fit has no headroom and the cold load costs ~9 s.
+- **`keep_alive` belongs in the request body, and `0` is the wrong value.** The timer resets on every request, so a
+  short value never unloads mid-batch — it only shortens the idle tail. `0` unloaded after each email and made all 25
+  requests pay the reload; `5m` leaves 8.9 GB resident long after work ends. `"30s"` is the setting.
+- **`Items per Batch: 1` on any HTTP Request hitting Ollama.** The default fires several at once, Ollama serves one
+  model at a time, and the queued requests burn the 5-minute HTTP timeout. Seven of 25 failed that way, scattered
+  through the batch rather than at the tail — which is how you tell concurrency from slowness.
+- **Downstream of `Continue (using error output)`, a Code node must use `.item`, never `.all()[i]`.** The error
+  branch removes items from the success stream, so reply *n* is no longer email *n*. Position pairing silently shifts
+  every answer after the first failure — in one run it put the right categories on the wrong emails. `.item` follows
+  n8n's paired-item link, and it only resolves in `Run Once for Each Item` mode.
+- **Sender history is a better fallback than a guess.** When confidence is below the floor, `map_label` reads the
+  `senderHint` sentence the caller built and uses that category instead. `build_sender_map` only records a sender at
+  3+ labelled emails with 80% agreement, so it is measured inbox history. Recovered three emails where the model
+  picked correctly at 0.41–0.60.
 
 - **`error_handler` is the shared failure alert.** Two nodes — Error Trigger into a red Slack card on `#tars_alerts`
   naming the workflow, the failing node and a link to the execution. Set as the Error Workflow on all five production
@@ -186,7 +217,9 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
   to the email; with it, it appears inside the conversation.
 - **`Execute Sub-workflow` stores `mappingMode: defineBelow` with an empty value object, and that is not a bug** when
   the target trigger runs `Accept all data` — n8n skips input mapping and every field passes through.
-- **Merge caps at 10 inputs.** An eleventh branch needs a second Merge node chained after the first.
+- **Merge caps at 10 inputs.** An eleventh branch needs a second Merge node chained after the first. No longer binding
+  on the mail domain — `mail_categorizer_jev` returns the category as data, so there are no branches to merge and
+  `travel` (`Label_14`) is one line of criteria away.
 - **Gmail: `Simplify` changes field names, not just size.** On, you get `labels: [{id, name}]`, `Subject`, `From` and
   a ~200-character `snippet` with **no body**. Off, you get `labelIds: ['INBOX', …]`, `subject`, `from.text`, and
   `text` / `html`. Any `IMPORTANT`/`STARRED` guard must match the mode it sits in.
@@ -202,7 +235,9 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
   `Output on Extra, 'Other' Branch` — the default drops an email with no label and no log.
 - **Category-description tuning plateaus around 16–17/20 on an 8B model.** Two rounds helped; a third moved errors
   around rather than reducing them. Tuning works when the mechanism is nameable — a brand name in a description
-  outweighing an abstract rule — and shuffles errors when it is not.
+  outweighing an abstract rule — and shuffles errors when it is not. **The plateau was partly an instrument problem:**
+  a text generator returns a word and no measure of how sure it was, so every round was tuned blind. With
+  probabilities visible, two added clauses fixed two long-standing misses on the first attempt.
 - **`Read/Write Files from Disk` never returns zero items.** A pattern matching nothing is reported as
   `{ "error": "No file(s) found" }`. Two consequences: `Always Output Data` is pointless on it, and combining that
   toggle with `onError: continueErrorOutput` lights **both** branches on one failed run. Use
@@ -215,8 +250,25 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
   which is why `extract_text` keeps `Keep Source: Both`, since the directory exists only at `binary.data.directory`.
   n8n cannot test for a directory: the file node only globs, the Code node has no `fs`, and `ExecuteCommand` is
   disabled in 2.x.
-- **Model in use: `qwen3:8b`.** `qwen3:14b` was tested and rejected on measurement — 12 GB resident, swap at 94%,
-  load average 17.4. 24 GB of RAM is the threshold that reopens the 22–24B tier. See `PLAN.md` §4.
+- **Models in use: `qwen3:8b` for generation, `nimble:9b` for classification.** `qwen3:14b` was tested and rejected on
+  measurement — 12 GB resident, swap at 94%, load average 17.4. 24 GB of RAM is the threshold that reopens the 22–24B
+  tier. The two current models cannot be resident together on 16 GB, which is why `nimble` carries `keep_alive: "30s"`
+  and gets evicted between runs. See `PLAN.md` §4.
+- **Each question re-reads the whole prompt, so questions are not free.** Ollama's docs: *"Every question is scored
+  with the full state and question set in its prompt."* Two questions prefill the state and all nine criteria twice,
+  so `input_tokens` is roughly double the material actually sent. Budget a question like a separate request that
+  happens to share a round trip.
+- **Do not move work in front of a deterministic gate.** `mail_categorizer_jev` carried a `needs_reply` question at
+  first, on the reasoning that one request answering two questions beats two model calls. Wrong: `reply_check` runs
+  *after* `filter_repliable` has cut 25 emails to 0–2 with no model at all, so folding it in would trade two model
+  calls for twenty-five extra prefills. The question was removed. The three gates are what make the draft branch
+  affordable.
+- **Ollama 0.35 added `/v1/systemone` for decision models.** Up to 64 named questions about one `state`, of type
+  `choice` (2–26 options), `noul` (yes/no with a probability) or `score`. Request bodies cap at 64 KiB. n8n has no node
+  for the endpoint, so it is a plain HTTP Request to `http://host.docker.internal:11434` — local, no credential.
+- **Build the JSON body with `JSON.stringify`, not raw interpolation.** Email bodies carry quotes and newlines;
+  `{{ $json.body }}` dropped straight in breaks the body with *"The value in the JSON Body field is not valid JSON"*.
+  `JSON.stringify` supplies the surrounding quotes, so the template has none.
 - Slack app **T.A.R.S** posts colour-coded block messages: saves and rejections to `#tars_logs`, write failures to
   `#tars_alerts`. n8n's Blocks field accepts an `{ "attachments": [...] }` wrapper despite documenting only
   `{ "blocks": [...] }` — that is the only way to get a colour strip.
