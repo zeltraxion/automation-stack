@@ -138,7 +138,7 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
 
 ## Current state
 
-- **Git repository**, currently on `feature/mail_organizer`; PR #5 merged.
+- **Git repository**, currently on `main`; PR #7 merged.
 - `VAULT_PATH` is referenced on **five lines** of `docker-compose.yml`. The vault is mounted: `control_plane` and
   `memory/briefing` read-only, `dashboard`, `files` and `memory/learned` writable. `notes/` is deliberately not mounted.
 
@@ -162,7 +162,7 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
 - **Both production sub-workflows are live:** `memory_write` and `memory_read`, published, documented in
   `docs/memory_write.md` and `docs/memory_read.md`.
 - **The mail domain is live.** `mail_label_draft`, published, Schedule Trigger once a day at 21:00 IST, calls
-  `mail_categorizer` as a sub-workflow. It labels every fetched email into one of nine categories, and writes a Gmail
+  `mail_categorizer_jev` as a sub-workflow. It labels every fetched email into one of nine categories, and writes a Gmail
   draft for the one or two a person is actually waiting on. **Nothing is archived, deleted or sent** — drafts only,
   deliberately, until accuracy is trusted. Documented in `docs/mail_label_draft.md` and
   `docs/mail_categorizer_jev.md`.
