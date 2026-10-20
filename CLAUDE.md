@@ -218,8 +218,11 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
   which is what makes the two model calls after them affordable.
 - **`List-Unsubscribe` is the general bulk signal; a domain list is not.** One night's inbox carried 17 distinct
   sender domains, so any hardcoded list of platforms is obsolete the week it is written. `trim_body` sets
-  `isBulk` from the `list-unsubscribe` / `list-id` headers instead — measured at 18 of 25, against 19 for the
-  `BULK_WORDS` local-part check. The two overlap but neither contains the other, so both run. `headers` does not
+  `isBulk` from the `list-unsubscribe`, `list-id` and `feedback-id` headers instead — measured at 20 of 25,
+  against 19 for the `BULK_WORDS` local-part check. The two overlap but neither contains the other, so both run.
+  `feedback-id` is the loosest of the three: Google defines it for Postmaster Tools, so it means *sent by bulk
+  infrastructure* rather than *this is a mailing list*. Amazon and Groww stamp transactional notices with it and
+  set no `list-unsubscribe` at all, which is the gap it closes. `headers` does not
   survive `trim_body`, which rebuilds the item, so the flag must be computed there and carried as a field.
   Senders that set no bulk header at all exist — HSBC marketing is one — but they never reach the gate, because
   their category is not in `REPLYABLE`.

@@ -201,8 +201,10 @@ Three questions, all answerable from data already in hand.
 **Is the category one that could ever need a reply?** Only `general`, `job_application` and `job_interview`. A bill or
 a security alert already has a loud label; a second flag adds nothing.
 
-**Did a machine send it?** `trim_body` sets `isBulk` from the `list-unsubscribe` and `list-id` headers, which every
-platform and newsletter sets and a person never does. One header check covers every sender at once — the alternative,
+**Did a machine send it?** `trim_body` sets `isBulk` from the `list-unsubscribe`, `list-id` and `feedback-id`
+headers, which every platform and newsletter sets and a person never does. `feedback-id` is Google's Postmaster Tools
+header, so it reads as *sent by bulk infrastructure* rather than *this is a mailing list* — looser, and the reason
+Amazon's and Groww's transactional notices are caught despite carrying no unsubscribe link. One header check covers every sender at once — the alternative,
 a list of platform domains, was rejected after a single night's inbox turned up 17 distinct domains.
 
 **Is the sender a real mailbox?** The part before the `@` is checked against a list of words that mean nobody is
@@ -215,7 +217,7 @@ const mailbox = (from.split('<').pop() ?? from).split('@')[0];
 **Only the local part is searched, never the domain.** `careers@infosys.com` becomes `careers`. Matching the whole
 string would find `info` and `sys` in the domain and silently drop a recruiter.
 
-The header check and the word check overlap without containing one another — 18 of 25 and 19 of 25 on the same batch.
+The header check and the word check overlap without containing one another — 20 of 25 and 19 of 25 on the same batch.
 `noreply12.jobs2web.com` sets no bulk header and is caught by the words; a platform mailing from a human-looking
 address is caught by the header. Both run.
 

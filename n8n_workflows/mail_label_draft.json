@@ -75,7 +75,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const map = $('build_sender_map').first().json.senderMap ?? {};\n\nreturn $input.all().map(item => {\n  const j = item.json;\n\n  const body = (j.text ?? '')\n    .replace(/https?:\\/\\/\\S+/g, '')   // tracking links, no signal, lots of tokens\n    .replace(/\\s+/g, ' ')             // collapse the newline soup\n    .trim()\n    .slice(0, 700);                   // enough to reach the actual point\n\n  const From = j.from?.text ?? '';\n\n  /**\n   * Standard bulk-mail markers. Every platform and newsletter sets one\n   * A human writing to you never does. Replaces any hardcoded domain list.\n   */\n  const h = j.headers ?? {};\n  const isBulk = !!(h['list-unsubscribe'] || h['list-id']);\n\n  // Same address extraction as build_sender_map, so the keys match\n  const addr = From.match(/[\\w.+-]+@[\\w.-]+/)?.[0]?.toLowerCase();\n  const hit = addr ? map[addr] : null;\n\n  const senderHint = hit\n    ? `Past mail from this sender: ${hit.n} of ${hit.total} were ${hit.top}.`\n    : '';\n\n  return{\n    json: {\n      id: j.id,\n      threadId: j.threadId,\n      labelIds: j.labelIds,\n      internalDate: j.date,\n      Subject: j.subject,\n      From,\n      body,\n      senderHint,\n      isBulk\n    }\n  };\n});"
+        "jsCode": "const map = $('build_sender_map').first().json.senderMap ?? {};\n\nreturn $input.all().map(item => {\n  const j = item.json;\n\n  const body = (j.text ?? '')\n    .replace(/https?:\\/\\/\\S+/g, '')   // tracking links, no signal, lots of tokens\n    .replace(/\\s+/g, ' ')             // collapse the newline soup\n    .trim()\n    .slice(0, 700);                   // enough to reach the actual point\n\n  const From = j.from?.text ?? '';\n\n  /**\n   * Standard bulk-mail markers. Every platform and newsletter sets one\n   * A human writing to you never does. Replaces any hardcoded domain list.\n   */\n  const h = j.headers ?? {};\n  const isBulk = !!(h['list-unsubscribe'] || h['list-id'] || h['feedback-id']);\n\n  // Same address extraction as build_sender_map, so the keys match\n  const addr = From.match(/[\\w.+-]+@[\\w.-]+/)?.[0]?.toLowerCase();\n  const hit = addr ? map[addr] : null;\n\n  const senderHint = hit\n    ? `Past mail from this sender: ${hit.n} of ${hit.total} were ${hit.top}.`\n    : '';\n\n  return{\n    json: {\n      id: j.id,\n      threadId: j.threadId,\n      labelIds: j.labelIds,\n      internalDate: j.date,\n      Subject: j.subject,\n      From,\n      body,\n      senderHint,\n      isBulk\n    }\n  };\n});"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -639,7 +639,7 @@
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false
   },
-  "versionId": "60bcdf3a-5433-4cf0-a990-5e1dc94c40f5",
+  "versionId": "8d9fef60-a21f-4a3e-b43b-9d85003aea3b",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"
