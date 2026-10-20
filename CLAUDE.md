@@ -129,6 +129,13 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
   For agent workloads this can cut the system prompt and tool definitions. Raise it via `OLLAMA_CONTEXT_LENGTH` or a
   derived model with `PARAMETER num_ctx`. **Currently set to 16384** in the Ollama app's settings, confirmed by
   the CONTEXT column of `ollama ps`.
+- **An Ollama upgrade can orphan a model that still appears in `ollama list`.** After one upgrade, every request
+  returned `400 - 'nimble:9b' was downloaded in a format that is no longer supported. To re-download, run
+  'ollama pull nimble:9b'`. Nothing else signalled it: `ollama list` still showed the model and `/api/tags` still
+  answered. Three nights of mail went unlabelled and every execution reported `success`, because the failing node
+  used `continueErrorOutput` into a branch wired to nothing. **An error output connected to nothing is not error
+  handling — it is a silent drop**, and it hides the outage it was supposed to surface. Check the funnel, not the
+  status: item counts falling to zero mid-workflow is the signal a green execution will not give you.
 - **n8n 2.x disables `ExecuteCommand` and `LocalFileTrigger` by default**, and Code nodes can no longer read environment
   variables. Relevant if a workflow needs to shell out or watch a folder.
 - **The port is bound to `127.0.0.1`.** Removing that prefix exposes n8n to every device on the local network; doing so
@@ -173,7 +180,7 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
   node, since both return the same `category` and `labelId`.
 - **A confidence number is the point, not the accuracy gain.** Measured on 25 real emails: 22 labelled, 3 held back,
   **0 confidently wrong** — against 16–17 of 20 with 3–4 wrong labels silently applied. Below a 0.6 floor the model's
-  pick is discarded and the email gets `sorted` with no category label.
+  pick is discarded and the email gets no label at all, so `-label:sorted` finds it again on the next run.
 - **Shorter category descriptions made it both faster and more accurate.** Cutting the nine from ~1,800 to ~550 tokens
   halved wall clock (1m42s → 48s on six emails) and raised confidence. The long versions carried cross-references and
   tie-break rules written to steer a text generator; a decision model scores all nine at once, so the probabilities
@@ -206,9 +213,20 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
   card, `error_handler` covers everything unhandled. Five nodes in `mail_label_draft` work that way.
 - **The four Gmail nodes retry three times at two-second intervals.** A dropped connection to Google is exactly what
   retry exists for — an alert now means three consecutive failures, not one bad response.
-- **Three gates stand between a fetched email and a model call in the draft branch:** a category gate, a sender-address
-  check, then a Text Classifier. The first two are deterministic and cut 25 emails to 0–2, which is what makes the two
-  model calls after them affordable.
+- **Four gates stand between a fetched email and a model call in the draft branch:** a category gate, a bulk-header
+  check, a sender-address check, then a Text Classifier. The first three are deterministic and cut 25 emails to 0–2,
+  which is what makes the two model calls after them affordable.
+- **`List-Unsubscribe` is the general bulk signal; a domain list is not.** One night's inbox carried 17 distinct
+  sender domains, so any hardcoded list of platforms is obsolete the week it is written. `trim_body` sets
+  `isBulk` from the `list-unsubscribe` / `list-id` headers instead — measured at 18 of 25, against 19 for the
+  `BULK_WORDS` local-part check. The two overlap but neither contains the other, so both run. `headers` does not
+  survive `trim_body`, which rebuilds the item, so the flag must be computed there and carried as a field.
+  Senders that set no bulk header at all exist — HSBC marketing is one — but they never reach the gate, because
+  their category is not in `REPLYABLE`.
+- **An email the categorizer could not decide gets no label whatsoever.** Not even `sorted`. `dedupe_and_flag`
+  drops it, so `-label:sorted in:inbox newer_than:7d` finds it again the next night and it ages out of the window
+  by itself after seven days. The marker has to be the outcome, never the fact that the workflow ran — tagging on
+  execution marked the emails the model understood least as permanently handled.
 - **An 8B model invents facts about the user when drafting.** Asked to reply to an email requesting availability and
   notice period, `qwen3:8b` answered with specific days and "15 days", both fabricated and stated as fact. Rules alone
   did not stop it; **two worked examples did** — the same finding as `memory_agent`. The fix is a named-placeholder
@@ -261,7 +279,7 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
 - **Do not move work in front of a deterministic gate.** `mail_categorizer_jev` carried a `needs_reply` question at
   first, on the reasoning that one request answering two questions beats two model calls. Wrong: `reply_check` runs
   *after* `filter_repliable` has cut 25 emails to 0–2 with no model at all, so folding it in would trade two model
-  calls for twenty-five extra prefills. The question was removed. The three gates are what make the draft branch
+  calls for twenty-five extra prefills. The question was removed. The four gates are what make the draft branch
   affordable.
 - **Ollama 0.35 added `/v1/systemone` for decision models.** Up to 64 named questions about one `state`, of type
   `choice` (2–26 options), `noul` (yes/no with a probability) or `score`. Request bodies cap at 64 KiB. n8n has no node

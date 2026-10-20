@@ -79,7 +79,13 @@
             "index": 0
           }
         ],
-        []
+        [
+          {
+            "node": "map_label",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
@@ -92,7 +98,7 @@
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false
   },
-  "versionId": "5da13fb8-b392-4786-859f-26f122c6bb3f",
+  "versionId": "922ee843-bcf8-4145-a377-14cdde63d678",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"

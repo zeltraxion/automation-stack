@@ -443,12 +443,12 @@ Schedule Trigger (daily, 21:00 IST)
   → history_lookup      Gmail · q: label:sorted · 100 · Simplify ON
   → build_sender_map    Code · sender → usual category, 3+ emails and 80% agreement
   → fetch_mail          Gmail · q: -label:sorted in:inbox newer_than:7d · 25 · Simplify OFF
-  → trim_body           Code · strip URLs, 700 chars, attach senderHint
+  → trim_body           Code · strip URLs, 700 chars, senderHint + isBulk
   → mail_categorizer    sub-workflow → mail_categorizer_jev · nimble:9b decision model
                         returns category + labelId + confidence
-  → dedupe_and_flag     Code · one per id, build the label list
+  → dedupe_and_flag     Code · drop undecided, build the label list
   ├─► apply_labels      Gmail · Add Label
-  └─► filter_repliable  Code · category gate + sender address, no model
+  └─► filter_repliable  Code · category + bulk header + sender address, no model
         → reply_check   Text Classifier · needs_reply / no_reply_needed
         → write_draft   Basic LLM Chain · placeholders, never invented facts
         → create_draft  Gmail · Draft → Create, threaded
@@ -547,10 +547,10 @@ API. `https://mail.google.com/mail/u/0/#all/{messageId}` works in practice and t
 **Status:** `mail_label_draft` and `mail_categorizer` are live, labelling and drafting. The `needs_reply` label, the
 archive step, Slack logging, `mail_digest` and `mail_agent` are unbuilt.
 
-**Drafts turned out to need three gates, not one.** A category gate and a sender-address check, both deterministic,
-cut a 25-email batch to 0–2 before any model runs — which is what makes the two model calls after them affordable. A
-single LLM pass over every email, as the one community precedent does it, costs 25 calls to answer a question that two
-lines of code answer for 23 of them.
+**Drafts turned out to need four gates, not one.** A category gate, a bulk-header check and a sender-address check,
+all three deterministic, cut a 25-email batch to 0–2 before any model runs — which is what makes the two model calls
+after them affordable. A single LLM pass over every email, as the one community precedent does it, costs 25 calls to
+answer a question that two lines of code answer for 23 of them.
 
 **An 8B model invents facts about the user when drafting**, and rules alone do not stop it. Asked to reply to an email
 requesting availability and notice period, `qwen3:8b` answered with specific days and "15 days", both fabricated. Two

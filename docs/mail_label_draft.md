@@ -21,11 +21,11 @@ flowchart TD
     H["<b>history_lookup</b><br/>Gmail · q: label:sorted · 100"]
     M["<b>build_sender_map</b><br/>sender → usual category"]
     F["<b>fetch_mail</b><br/>Gmail · q: -label:sorted in:inbox newer_than:7d · 25"]
-    B["<b>trim_body</b><br/>strip URLs · 700 chars · attach senderHint"]
+    B["<b>trim_body</b><br/>strip URLs · 700 chars · senderHint + isBulk"]
     C["<b>mail_categorizer</b><br/>sub-workflow → mail_categorizer_jev<br/>returns category + labelId + confidence"]
-    D["<b>dedupe_and_flag</b><br/>one per id · build label list"]
+    D["<b>dedupe_and_flag</b><br/>drop undecided · build label list"]
     A["<b>apply_labels</b><br/>Gmail · Add Label"]
-    R["<b>filter_repliable</b><br/>category gate + sender address"]
+    R["<b>filter_repliable</b><br/>category + bulk header + sender address"]
     K["<b>reply_check</b><br/>Text Classifier · needs_reply?"]
     W["<b>write_draft</b><br/>Basic LLM Chain"]
     O["<b>ollama_reply</b><br/>qwen3:8b · thinking off · temp 0.1"]
@@ -166,10 +166,17 @@ inspecting what `dedupe_and_flag` receives.
 
 ### `dedupe_and_flag` — Code
 
-Keeps one copy per message id, then builds `labelsToAdd` — always `Label_11` (`sorted`), plus the category label when
-there is one.
+Builds `labelsToAdd` — `Label_11` (`sorted`) plus the category label — but only for emails the categorizer decided on.
 
-`sorted` goes on every email including the undecided ones. That is what stops the next run re-reading them.
+**An undecided email gets no label at all.** No category, and no `sorted` either. It is dropped here, so
+`-label:sorted` finds it again the next night and it ages out of the seven-day window on its own.
+
+This replaced tagging every processed email with `sorted`. That version marked the undecided ones as handled and
+excluded them from every later run, which meant the emails the model understood least were the only ones guaranteed
+never to be looked at again. The marker has to be the outcome, not the fact that the workflow ran.
+
+The node no longer deduplicates despite the name. One email could arrive twice only while the nine `cat_*` branches
+merged into it; `mail_categorizer` is now its single input, so the `Set` of seen ids was dead code and was removed.
 
 ### `apply_labels` — Gmail, Add Label
 
@@ -185,14 +192,18 @@ Gmail's add-label call is idempotent — adding a label already present is a no-
 
 ## The draft branch
 
-Three gates, cheapest first. Each one exists so the next is affordable.
+Four gates, cheapest first. Each one exists so the next is affordable.
 
 ### 1. `filter_repliable` — Code, no model
 
-Two questions, both answerable from data already in hand.
+Three questions, all answerable from data already in hand.
 
 **Is the category one that could ever need a reply?** Only `general`, `job_application` and `job_interview`. A bill or
 a security alert already has a loud label; a second flag adds nothing.
+
+**Did a machine send it?** `trim_body` sets `isBulk` from the `list-unsubscribe` and `list-id` headers, which every
+platform and newsletter sets and a person never does. One header check covers every sender at once — the alternative,
+a list of platform domains, was rejected after a single night's inbox turned up 17 distinct domains.
 
 **Is the sender a real mailbox?** The part before the `@` is checked against a list of words that mean nobody is
 reading — `noreply`, `notifications`, `alerts`, `daemon` and about thirty more.
@@ -203,6 +214,10 @@ const mailbox = (from.split('<').pop() ?? from).split('@')[0];
 
 **Only the local part is searched, never the domain.** `careers@infosys.com` becomes `careers`. Matching the whole
 string would find `info` and `sys` in the domain and silently drop a recruiter.
+
+The header check and the word check overlap without containing one another — 18 of 25 and 19 of 25 on the same batch.
+`noreply12.jobs2web.com` sets no bulk header and is caught by the words; a platform mailing from a human-looking
+address is caught by the header. Both run.
 
 This cuts 25 emails to 0, 1 or 2. That reduction is what makes the two model calls below cheap enough to justify.
 
@@ -283,12 +298,19 @@ mail_label_draft · 7 had sender history · labels only, nothing archived
 ```
 
 A **Limit** node set to 1 item sits between `apply_labels` and this card. `apply_labels` runs once per email, so
-without it you would get twenty identical cards. The counting is done inline in the Slack expressions, reading
-`$('dedupe_and_flag').all()`.
+without it you would get twenty identical cards. The counting is done inline in the Slack expressions.
 
-**The counts are attempts, not successes.** They come from `dedupe_and_flag`, which is upstream of `apply_labels`, so
-if three of twenty labels fail the green card still says 20. The red cards are what tell you otherwise — read the two
-channels together.
+**Two nodes are counted, not one.** *Sorted* reads `$('dedupe_and_flag').all()`, which now holds only the emails that
+got a label. *Undecided* is the difference between `$('mail_categorizer').all()` and that, and *Breakdown* and the
+sender-history count read `mail_categorizer` too, because the undecided emails are dropped before `dedupe_and_flag`
+and would otherwise be invisible. Counting both sides is what makes *Undecided* an instrument: a run where the
+categorizer fails outright reads 25 rather than producing no card at all.
+
+**The counts are attempts, not successes.** They come from upstream of `apply_labels`, so if three of twenty labels
+fail the green card still says 20. The red cards are what tell you otherwise — read the two channels together.
+
+**If nothing is labelled, no card appears.** `label_success` sits downstream of `apply_labels`, which receives no
+items when every email is undecided. Silence is itself a signal.
 
 ### `draft_success` — green, `#tars_logs`
 
@@ -396,7 +418,7 @@ header check remains available if address matching proves insufficient.
 | | |
 |---|---|
 | Per email, classification | ~16–18s, ~1,430 tokens |
-| Per email, draft | ~20s, only for emails passing all three gates |
+| Per email, draft | ~20s, only for emails passing all four gates |
 | Per run | 25 emails ≈ 7 minutes |
 | Schedule | daily, 21:00 IST |
 | Gmail quota | ~4,000 units/run against a 15,000/minute per-user limit |

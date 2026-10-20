@@ -102,10 +102,22 @@ across 25 emails, scattered rather than at the tail.
 
 **Retry, matching the four Gmail nodes.** An alert then means three consecutive failures, not one busy moment.
 
-**The Error output is deliberately left unconnected.** A failed email never reaches `dedupe_and_flag`, so `sorted` is
-never applied, so `-label:sorted` picks it up again on the next run. Self-healing. Wiring the error branch into
-`map_label` looks tidier and is worse: an error item has no `answers` key, falls straight through to the sender-history
-fallback, and gets `sorted` applied on the strength of a request that never succeeded.
+**The Error output is wired into `map_label`.** It was deliberately left unconnected at first, on the reasoning that a
+failed email never reaching `dedupe_and_flag` meant `sorted` was never applied, so the next run would pick it up again.
+That held only while `sorted` was applied unconditionally. It also hid a total outage: when an Ollama upgrade orphaned
+the model, all 25 emails took the error branch, the sub-workflow returned zero items, and both workflows reported
+`success` for three nights.
+
+An error item has no `answers` key, so `confidence` is `0` and it takes the same path as any low-confidence result —
+the sender-history fallback if there is one, otherwise `other` with an empty `labelId`. `dedupe_and_flag` now applies
+`sorted` only when a `labelId` exists, so an undecided item is labelled with nothing and returns on the next run. The
+difference from before is that it is now visible: the *Undecided* count on the Slack card reads 25 instead of the card
+never appearing.
+
+**Where sender history exists, a failed request still produces a label.** `map_label` cannot tell a failed call from a
+genuinely unsure one, so an email from a sender with measured history is labelled from that history. That is the
+fallback working as designed — it requires 3+ previous emails at 80% agreement — but it is a label applied without a
+successful model call, which is worth knowing when reading a run back.
 
 ### The request
 

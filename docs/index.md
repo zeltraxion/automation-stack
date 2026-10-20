@@ -26,7 +26,7 @@ Working on an agent: `memory_agent.md`. Building or changing a workflow: `test_w
 `memory_write.md` and `memory_read.md` as the two worked examples — one writing, one reading.
 
 The mail pages are the worked examples that are not about memory. `mail_label_draft.md` covers the scheduled workflow
-end to end — the three gates before a model runs, and the safety rules that govern anything which could hide mail.
+end to end — the four gates before a model runs, and the safety rules that govern anything which could hide mail.
 `mail_categorizer_jev.md` covers the sub-workflow it calls, and is the one to read for how a decision model differs
 from a Text Classifier. `mail_categorizer.md` is its predecessor, kept as the rollback.
 
