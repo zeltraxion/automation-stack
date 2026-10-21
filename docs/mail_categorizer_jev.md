@@ -78,8 +78,9 @@ Unchanged from the Text Classifier version, including the reasons: names use `jo
 because a slash is one more character to reproduce wrongly, and `other` deliberately applies no label so uncertainty
 stays visible instead of being forced into `general`.
 
-`travel` (`Label_14`) exists in Gmail and is still unused — but now only because nothing has asked for it, not because
-a Merge node is full.
+`travel` (`Label_14`) exists in Gmail and stays unused — a decision now, not a limitation. Nine categories cover the
+mail that actually arrives. A tenth would add its description to the prompt of every single request, for a category
+that would fire a handful of times a year.
 
 ## `label_confidence` — HTTP Request
 
@@ -306,7 +307,6 @@ the inbox with the wrong colour on it; a withheld label leaves it with no colour
 | Gap | Where it lands |
 |---|---|
 | Classification runs on every fetched email | No gate stands in front of it, unlike the draft branch. Nothing cheaper has been found that still labels everything |
-| No `travel` category | One line of criteria and one map entry away. Nothing blocks it any more |
 | The floor is a fixed 0.6 | Not tuned per category. A `security` miss costs more than a `newsletter` miss |
 | Sender hint is supplied, not computed | The caller builds it; this workflow only reads it |
 | A failed email is silent | It retries on the next run, but nothing reports that it failed |

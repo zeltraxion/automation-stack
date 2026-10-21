@@ -239,8 +239,9 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
 - **`Execute Sub-workflow` stores `mappingMode: defineBelow` with an empty value object, and that is not a bug** when
   the target trigger runs `Accept all data` — n8n skips input mapping and every field passes through.
 - **Merge caps at 10 inputs.** An eleventh branch needs a second Merge node chained after the first. No longer binding
-  on the mail domain — `mail_categorizer_jev` returns the category as data, so there are no branches to merge and
-  `travel` (`Label_14`) is one line of criteria away.
+  on the mail domain — `mail_categorizer_jev` returns the category as data, so there are no branches to merge.
+  `travel` (`Label_14`) stays unused by choice: a tenth category would cost prompt tokens on every request to catch
+  mail that arrives a few times a year.
 - **Gmail: `Simplify` changes field names, not just size.** On, you get `labels: [{id, name}]`, `Subject`, `From` and
   a ~200-character `snippet` with **no body**. Off, you get `labelIds: ['INBOX', …]`, `subject`, `from.text`, and
   `text` / `html`. Any `IMPORTANT`/`STARRED` guard must match the mode it sits in.
