@@ -328,13 +328,14 @@
       "id": "c22ec586-aa26-4d30-87db-416a256d3f3e",
       "name": "error_logs",
       "webhookId": "dbfde899-31d6-4793-aa55-756cdf8077d1",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
       "credentials": {
         "slackApi": {
           "id": "Evd3eBEncrme7O5O",
           "name": "Slack account"
         }
-      },
-      "onError": "continueErrorOutput"
+      }
     },
     {
       "parameters": {},
@@ -371,13 +372,14 @@
       "id": "81b8aed3-a500-4f41-98d0-de1f2e28ca64",
       "name": "draft_success",
       "webhookId": "dbfde899-31d6-4793-aa55-756cdf8077d1",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
       "credentials": {
         "slackApi": {
           "id": "Evd3eBEncrme7O5O",
           "name": "Slack account"
         }
-      },
-      "onError": "continueErrorOutput"
+      }
     },
     {
       "parameters": {
@@ -403,13 +405,14 @@
       "id": "e225779b-3d8d-44c6-8940-2e939c44868b",
       "name": "label_success",
       "webhookId": "dbfde899-31d6-4793-aa55-756cdf8077d1",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
       "credentials": {
         "slackApi": {
           "id": "Evd3eBEncrme7O5O",
           "name": "Slack account"
         }
-      },
-      "onError": "continueErrorOutput"
+      }
     }
   ],
   "pinData": {},
@@ -639,7 +642,7 @@
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false
   },
-  "versionId": "8d9fef60-a21f-4a3e-b43b-9d85003aea3b",
+  "versionId": "a0958063-deb5-4c1c-bf36-7b1a6876b56a",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"

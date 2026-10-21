@@ -36,6 +36,8 @@
       "id": "16de99a0-54c8-4e0d-b260-21edea981257",
       "name": "Send a message",
       "webhookId": "b8b69249-e5a1-4597-bfa1-20a61b2623cc",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
       "credentials": {
         "slackApi": {
           "id": "Evd3eBEncrme7O5O",
@@ -63,7 +65,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "0feac650-656a-46ae-add6-1309dd7f2899",
+  "versionId": "af71d91c-b11d-4eb4-b025-50b723db65a7",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"
