@@ -333,8 +333,13 @@ It also means those five nodes no longer fail the execution, so `error_handler` 
 handover, not a hole: the per-node card covers the five, `error_handler` covers everything else. See
 [`error_handler.md`](error_handler.md).
 
-**All three Slack nodes are themselves set to `Continue (using error output)`.** An alert node that takes the workflow
-down when Slack has a bad day is worse than no alert.
+**The Slack nodes retry, and none of them swallow their own failures.** `error_logs`, `label_success` and
+`draft_success` were once set to `Continue (using error output)` with that second output wired to nothing. Two things
+went wrong at once: the error was discarded, and because n8n treats a node with `onError` set as *handled*,
+`error_handler` did not fire either. A failed Slack post was invisible twice over. All three now use the default
+`Stop Workflow` with **Retry On Fail: 3 tries, 5000 ms**. A bad minute at Slack is absorbed by the retry; a real
+outage fails the execution, which is exactly what makes `error_handler` report it. The original worry — that an alert
+node could take the whole workflow down — is answered by the retry, not by throwing the error away.
 
 **Never turn on `Always Output Data` alongside an error output.** That combination fires both branches on a single
 failure — measured in `memory_read`, where it produced two contradictory Slack cards and a return value that was a
