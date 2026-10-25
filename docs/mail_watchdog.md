@@ -38,7 +38,7 @@ Two further reasons it is not an n8n workflow:
 
 ```mermaid
 flowchart LR
-    C["<b>Hermes cron</b><br/>0 7 * * *<br/>no_agent"]
+    C["<b>Hermes cron</b><br/>30 10 * * *<br/>no_agent"]
     S["<b>mail-watchdog.py</b>"]
     A["<b>GET /api/v1/executions</b><br/>localhost:5678 · limit 1"]
     D{"state?"}
@@ -120,9 +120,18 @@ Without this the watchdog could not tell a deliberate pause from a dead workflow
 else, so an unticked box earned an amber *stale* card every morning. Full design in
 [`control_plane.md`](control_plane.md).
 
-**Why 26 and not 24.** The schedule is 21:00 daily, the check is 07:00. n8n fires missed schedules on wake, so a run
+**Why 26 and not 24.** The schedule is 21:00 daily, the check is 10:30. n8n fires missed schedules on wake, so a run
 delayed by a sleeping Mac can land hours late — on 2026-10-23 the 21:00 run actually started at 22:18 IST. A 24-hour
 window would alert on that. 26 tolerates a late catch-up and still catches a genuinely missed night.
+
+**Why 10:30 and not 07:00.** The laptop stays shut until work starts around 10:00, and a closed lid sleeps regardless
+of any `pmset` idle setting — so a 07:00 job never fired on time, it fired as a catch-up whenever the lid opened. The
+schedule now matches when the machine is actually awake. **Temporary**: the real fix is moving this job to a host that
+does not sleep, at which point it goes back to running before the working day rather than during it.
+
+The threshold still holds at either time. A normal night leaves the last run 13.5 hours old at 10:30, against 10.5 at
+07:00; a missed night leaves it 37.5 hours old. Both sit well clear of 26 on the correct side, so the move changes
+when the card arrives, not what it says.
 
 **Exactly one card per day, and that is deliberate.** An earlier version used two cron jobs — one that alerted and one
 that always reported — which meant a bad state produced two cards carrying the same facts in two channels. Merging

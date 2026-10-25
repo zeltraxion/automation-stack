@@ -46,7 +46,7 @@ flowchart TD
     RS["<b>read_switches</b><br/>helper workflow"]
     G{"<b>switch_gate</b><br/>enabled?"}
     WORK["the workflow's real work"]
-    WD["<b>mail-watchdog.py</b><br/>Hermes cron · 07:00"]
+    WD["<b>mail-watchdog.py</b><br/>Hermes cron · 10:30"]
     CARD["<b>#tars_logs</b><br/>grey paused card"]
     S --> CS --> RS
     RS --> G

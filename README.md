@@ -111,7 +111,7 @@ Two things run **outside** Docker on purpose:
 
 | | What it is | Why not in n8n |
 |---|---|---|
-| `scripts/mail-watchdog.py` | A Hermes cron job at 07:00. One Slack card a day saying whether `mail_label_draft` actually ran | A watchdog that dies with the thing it watches is not a watchdog. `error_handler` needs an execution to fire against, so it is structurally blind to a run that never started |
+| `scripts/mail-watchdog.py` | A Hermes cron job at 10:30. One Slack card a day saying whether `mail_label_draft` actually ran | A watchdog that dies with the thing it watches is not a watchdog. `error_handler` needs an execution to fire against, so it is structurally blind to a run that never started |
 | Hermes gateway | A Slack-facing agent in `#tars_chat`, on a local model | Socket Mode opens an outbound WebSocket, so there is no public URL to expose and no tunnel to maintain |
 
 Alerts land in two Slack channels and the colour carries the meaning:
@@ -201,7 +201,7 @@ The pieces outside Docker have their own:
 
 ```bash
 hermes cron list              # scheduled jobs, last run, last recorded failure
-hermes cron run <job_id>      # fire the watchdog now instead of waiting for 07:00
+hermes cron run <job_id>      # fire the watchdog now instead of waiting for 10:30
 hermes gateway restart        # after any config.yaml or .env change — a restart is required
 
 # scripts live in two places; Hermes only runs scripts from its own directory
