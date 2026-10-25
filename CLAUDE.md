@@ -149,9 +149,9 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
 - `VAULT_PATH` is referenced on **five lines** of `docker-compose.yml`. The vault is mounted: `control_plane` and
   `memory/briefing` read-only, `dashboard`, `files` and `memory/learned` writable. `notes/` is deliberately not mounted.
 
-- `n8n_workflows/` holds nine exports: `memory_agent.json`, `memory_write.json`, `memory_read.json`,
+- `n8n_workflows/` holds ten exports: `memory_agent.json`, `memory_write.json`, `memory_read.json`,
   `mail_label_draft.json`, `mail_categorizer_jev.json`, `mail_categorizer.json`, `error_handler.json`,
-  `test_chat_LLM.json`, `test_nodes_and_obsidian.json`.
+  `read_switches.json`, `test_chat_LLM.json`, `test_nodes_and_obsidian.json`.
 
 - `custom-nodes/` and `.github/workflows/` exist but are empty. Git does not track empty directories, so they will not
   survive a clone without `.gitkeep` files.
@@ -204,6 +204,20 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
   3+ labelled emails with 80% agreement, so it is measured inbox history. Recovered three emails where the model
   picked correctly at 0.41–0.60.
 
+- **The vault control plane is live.** `control_plane/switches.md` holds one boolean property per scheduled
+  workflow, rendered as a checkbox by Obsidian's Properties plugin. `read_switches` parses it and answers one
+  question — `{ workflow, enabled }` — and a caller gates itself with two nodes, `check_switch` plus an IF.
+  `mail_label_draft` is the only caller so far; a gated run ends green in 146 ms. Documented in
+  `docs/control_plane.md`.
+- **It fails open, and that is a per-workflow decision rather than a default.** A missing or unreadable file lets
+  everything run, which takes three things: `onError: continueRegularOutput` on both file nodes and `?? ''` in the
+  parser. Correct here because an unwanted run of `mail_label_draft` only writes labels and drafts, while a silent
+  stop goes unnoticed for up to a day. Anything that archives, deletes, sends or spends should invert the last line
+  of the parser to `=== true`.
+- **The switch file is the first thing both n8n and Hermes read.** n8n reaches it through the `:ro` bind mount at
+  `/vault/control_plane/switches.md`; `mail-watchdog.py` runs natively and opens the same file at its real path. A
+  paused workflow gets a grey card in `#tars_logs` instead of an amber alert, and the watchdog exits before calling
+  the n8n API so that pausing mail and stopping Docker together stays quiet.
 - **`error_handler` is the shared failure alert.** Two nodes — Error Trigger into a red Slack card on `#tars_alerts`
   naming the workflow, the failing node and a link to the execution. Set as the Error Workflow on all five production
   workflows; deliberately not on itself, since an error handler that errors calls itself. Documented in

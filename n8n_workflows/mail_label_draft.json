@@ -6,8 +6,8 @@
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        -5440,
-        2432
+        -6272,
+        2848
       ],
       "id": "9b6731bc-88b0-4d92-adae-b37e8205c327",
       "name": "When clicking ‘Execute workflow’"
@@ -25,8 +25,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        -4768,
-        2464
+        -5152,
+        2880
       ],
       "id": "08c48883-17fa-42cd-8169-d0e282fd6242",
       "name": "fetch_mail",
@@ -48,8 +48,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -4096,
-        2256
+        -4480,
+        2672
       ],
       "id": "415833c2-e712-4fa1-92fa-07f46234a562",
       "name": "dedupe_and_flag"
@@ -67,8 +67,8 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.4,
       "position": [
-        -5440,
-        2624
+        -6272,
+        3040
       ],
       "id": "66f74629-1584-43d1-9139-2fb0fc45b4d6",
       "name": "Schedule Trigger"
@@ -80,8 +80,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -4544,
-        2384
+        -4928,
+        2800
       ],
       "id": "738b83b9-3c80-46dd-b987-7841c8a4106f",
       "name": "trim_body"
@@ -97,8 +97,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        -5216,
-        2528
+        -5600,
+        2944
       ],
       "id": "2701b919-8169-4863-a6f4-c950e4f22836",
       "name": "history_lookup",
@@ -120,8 +120,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -4992,
-        2464
+        -5376,
+        2880
       ],
       "id": "ae90524d-db31-4237-99c0-34f585233949",
       "name": "build_sender_map"
@@ -135,8 +135,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        -2944,
-        2208
+        -3328,
+        2624
       ],
       "id": "cbc6d991-ed72-4353-8d9a-ec268dc3c56f",
       "name": "apply_labels",
@@ -158,8 +158,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3872,
-        2480
+        -4256,
+        2896
       ],
       "id": "5afb21de-49e6-4dc5-9ee6-b477c6b792b2",
       "name": "filter_repliable"
@@ -191,8 +191,8 @@
       "type": "@n8n/n8n-nodes-langchain.textClassifier",
       "typeVersion": 1.1,
       "position": [
-        -3648,
-        2480
+        -4032,
+        2896
       ],
       "id": "c68b17f2-4fa6-411b-afe3-fc58df3c61d6",
       "name": "reply_check"
@@ -215,8 +215,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        -3296,
-        2480
+        -3680,
+        2896
       ],
       "id": "1b6e6152-b9d1-4099-811c-ffdd2f52e776",
       "name": "write_draft"
@@ -232,8 +232,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmOllama",
       "typeVersion": 1,
       "position": [
-        -3584,
-        2752
+        -3960,
+        3160
       ],
       "id": "b9331e3e-2f67-4ad8-83e6-4abbf0d25c2f",
       "name": "ollama_reply",
@@ -257,8 +257,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        -2944,
-        2480
+        -3328,
+        2896
       ],
       "id": "0e121af1-8871-453c-9692-2b68b4e0edca",
       "name": "create_draft",
@@ -297,8 +297,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        -4320,
-        2384
+        -4704,
+        2800
       ],
       "id": "f632e1a9-972a-4a01-b940-5a46be682aff",
       "name": "mail_categorizer",
@@ -322,8 +322,8 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
       "position": [
-        -2720,
-        2624
+        -3104,
+        3040
       ],
       "id": "c22ec586-aa26-4d30-87db-416a256d3f3e",
       "name": "error_logs",
@@ -342,8 +342,8 @@
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
-        -2720,
-        2160
+        -3104,
+        2576
       ],
       "id": "a356ab62-fc6f-4d66-95eb-9685139594c2",
       "name": "Limit"
@@ -366,8 +366,8 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
       "position": [
-        -2720,
-        2848
+        -3104,
+        3264
       ],
       "id": "81b8aed3-a500-4f41-98d0-de1f2e28ca64",
       "name": "draft_success",
@@ -399,8 +399,8 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.7,
       "position": [
-        -2496,
-        2160
+        -2880,
+        2576
       ],
       "id": "e225779b-3d8d-44c6-8940-2e939c44868b",
       "name": "label_success",
@@ -413,6 +413,85 @@
           "name": "Slack account"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6145e1f6-ec7e-4191-af56-48f5841dac58",
+              "leftValue": "={{ $json.enabled }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5824,
+        2944
+      ],
+      "id": "6124fa4a-49fd-4809-abf1-23f0643115ed",
+      "name": "switch_gate"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "d2H1qzWSChDbS5no",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/d2H1qzWSChDbS5no",
+          "cachedResultName": "read_switches"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow": "mail_label_draft"
+          },
+          "matchingColumns": [
+            "workflow"
+          ],
+          "schema": [
+            {
+              "id": "workflow",
+              "displayName": "workflow",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -6048,
+        2944
+      ],
+      "id": "3bad4e51-1bfd-4644-86b0-60430f994617",
+      "name": "check_switch"
     }
   ],
   "pinData": {},
@@ -421,7 +500,7 @@
       "main": [
         [
           {
-            "node": "history_lookup",
+            "node": "check_switch",
             "type": "main",
             "index": 0
           }
@@ -466,7 +545,7 @@
       "main": [
         [
           {
-            "node": "history_lookup",
+            "node": "check_switch",
             "type": "main",
             "index": 0
           }
@@ -631,6 +710,28 @@
           }
         ]
       ]
+    },
+    "switch_gate": {
+      "main": [
+        [
+          {
+            "node": "history_lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_switch": {
+      "main": [
+        [
+          {
+            "node": "switch_gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -642,7 +743,7 @@
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false
   },
-  "versionId": "a0958063-deb5-4c1c-bf36-7b1a6876b56a",
+  "versionId": "a6961f60-d068-4eb9-8758-33d995e47af9",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"

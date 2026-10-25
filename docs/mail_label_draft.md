@@ -18,6 +18,8 @@ someone want an answer", and both halves are answerable locally.
 flowchart TD
     T1["<b>Schedule Trigger</b><br/>daily · 21:00 IST"]
     T2["When clicking 'Execute workflow'<br/>manual, for testing"]
+    CS["<b>check_switch</b><br/>sub-workflow → read_switches"]
+    SG{"<b>switch_gate</b><br/>enabled?"}
     H["<b>history_lookup</b><br/>Gmail · q: label:sorted · 100"]
     M["<b>build_sender_map</b><br/>sender → usual category"]
     F["<b>fetch_mail</b><br/>Gmail · q: -label:sorted in:inbox newer_than:7d · 25"]
@@ -33,8 +35,11 @@ flowchart TD
     L1["<b>label_success</b><br/>Slack · #tars_logs"]
     L2["<b>draft_success</b><br/>Slack · #tars_logs"]
     L3["<b>error_logs</b><br/>Slack · #tars_alerts"]
-    T1 --> H
-    T2 --> H
+    T1 --> CS
+    T2 --> CS
+    CS --> SG
+    SG -->|true| H
+    SG -->|false| Z["nothing"]
     H --> M --> F --> B --> C --> D
     D --> A
     D --> R --> K --> W --> G
@@ -54,7 +59,16 @@ flowchart TD
 ```
 
 Published, Schedule Trigger once a day at 21:00 IST. The manual trigger sits alongside it for testing and for deliberate
-backlog sweeps.
+backlog sweeps. Both run through the switch gate, so there is no path that bypasses it.
+
+### The switch gate
+
+`check_switch` calls the `read_switches` helper with this workflow's name; `switch_gate` continues only when it
+answers `enabled: true`. Untick `mail_label_draft` in `control_plane/switches.md` and the run ends there, green, in
+146 ms — no Gmail call, no model, and the watchdog posts a grey *paused* card instead of an amber alert.
+
+It **fails open**: a missing or unreadable vault lets the run continue. See [`control_plane.md`](control_plane.md)
+for the three settings that produce that and why an unwanted run is the cheaper mistake here.
 
 Two branches leave `dedupe_and_flag`. The labelling branch handles every email; the draft branch handles the one or
 two that survive `filter_repliable`. They run independently.

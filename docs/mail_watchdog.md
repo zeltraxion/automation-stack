@@ -94,12 +94,31 @@ MAX_AGE_HOURS = 26
 
 | State | Condition | Colour | Channel |
 |---|---|---|---|
+| paused | the vault switch is `false` | grey | `#tars_logs` |
 | healthy | `status == "success"` and age ≤ 26h | green | `#tars_logs` |
 | stale | `status == "success"` and age > 26h | amber | `#tars_alerts` |
 | failed | `status != "success"` | red | `#tars_alerts` |
 | never ran | the executions list is empty | red | `#tars_alerts` |
 
-Order matters. A failed run is reported as failed even when it is also old.
+Order matters. Paused is answered first and a failed run is reported as failed even when it is also old.
+
+**Paused is checked before n8n is contacted at all.** `switch_enabled()` reads
+`control_plane/switches.md` natively — Hermes is not in the container, so it opens the file at its real path rather
+than `/vault/...` — and the script exits straight after sending the card:
+
+```python
+if not switch_enabled(NAME):
+    send_card(LOGS, GREY, f":zzz: *{NAME}* — paused", ...)
+    raise SystemExit
+```
+
+Pausing the mail and shutting Docker down for a trip is one action in practice, and the pair should give a quiet grey
+card rather than a connection-refused failure every morning. `raise SystemExit` exits `0`, so Hermes does not file it
+as a failed job.
+
+Without this the watchdog could not tell a deliberate pause from a dead workflow — it reads `startedAt` and nothing
+else, so an unticked box earned an amber *stale* card every morning. Full design in
+[`control_plane.md`](control_plane.md).
 
 **Why 26 and not 24.** The schedule is 21:00 daily, the check is 07:00. n8n fires missed schedules on wake, so a run
 delayed by a sleeping Mac can land hours late — on 2026-10-23 the 21:00 run actually started at 22:18 IST. A 24-hour
@@ -111,6 +130,7 @@ them removed the duplicate without losing anything:
 
 | Each morning | Means |
 |---|---|
+| grey in `#tars_logs` | switched off on purpose |
 | green in `#tars_logs` | ran, fine |
 | amber or red in `#tars_alerts` | ran, found a problem |
 | nothing in either | the watchdog itself did not run |
@@ -197,8 +217,10 @@ trail when a card does not appear.
 
 ## No error handling, on purpose
 
-There is no `try`/`except` anywhere in either file. If n8n is unreachable the `requests` call raises, the script exits
-non-zero, and Hermes delivers that failure itself.
+There is one `try`/`except` in either file, in `switch_enabled()`, and it is the fail-open rule rather than error
+handling — an unreadable switch file means the workflow is not paused, which is the same answer the n8n side reaches
+through two On Error settings. Everywhere else the rule holds: if n8n is unreachable the `requests` call raises, the
+script exits non-zero, and Hermes delivers that failure itself.
 
 Seen in practice on 2026-10-25: the Mac was off at 07:00, Hermes fired the job as a catch-up at 11:14 on wake, Docker
 had not started yet, and the job reported:
@@ -242,4 +264,5 @@ service.
 | One workflow | `mail_label_draft` only. The memory workflows are unwatched. Generalising means a list of `(id, name, max_age)` and a loop, which is roughly ten lines — worth doing when a second workflow needs it, not before |
 | Dead while the Mac sleeps | It detects a missed run; it cannot prevent one. Hermes' `multi-profile-gateways` guide has a section on keeping the host awake, which is the other half of the problem |
 | No deduplication | A workflow stale for three days produces three identical amber cards |
+| Ticking back on can raise one false alarm | The watchdog reads `startedAt` only. Pause for three days, tick back on after 21:00, and the next morning is amber *stale* — correct, but you already know why. Clears itself the day after. Tick back on before 21:00 to avoid it |
 | Fixed thresholds | `MAX_AGE_HOURS` is a constant in the script, not configuration |

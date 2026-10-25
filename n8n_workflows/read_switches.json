@@ -1,0 +1,133 @@
+{
+  "name": "read_switches",
+  "nodes": [
+    {
+      "parameters": {
+        "fileSelector": "/vault/control_plane/switches.md",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        -928,
+        112
+      ],
+      "id": "45b62ff8-fea6-4bcc-a682-7e9c4073de46",
+      "name": "Read/Write Files from Disk",
+      "executeOnce": false,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -704,
+        112
+      ],
+      "id": "1386c67a-6c59-4604-a25c-bfffc3f887f4",
+      "name": "Extract from File",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const fileText = $input.first().json.data ?? '';\nconst switches = {};\n\n// The properties block is everything between the first pair of --- lines.\nconst frontmatter = fileText.match(/^---\\r?\\n([\\s\\S]*?)\\r?\\n---/);\n\nif (frontmatter) {\n  for (const line of frontmatter[1].split(/\\r?\\n/)) {\n\n    // Split \"switch_name: true/false\" into a name and a value.\n    const parts = line.match(/^([\\w-]+):\\s*(.*)$/);\n    if (!parts) continue;\n\n    const name = parts[1];\n    let value = parts[2].trim();\n\n    if (value === 'true') value = true;\n    else if (value === 'false') value = false;\n\n    switches[name] = value;\n  }\n}\n\n// Which switch the caller asked about.\nconst asked = $('When Executed by Another Workflow').first().json.workflow;\n\n// Fail open: only an explicit false pauses. Missing file, missing property,\n// unreadable vault - all run.\nreturn [{ json: { workflow: asked, enabled: switches[asked] !== false } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        112
+      ],
+      "id": "8bdf66af-911b-4d85-888d-347f63b75603",
+      "name": "Get Contents"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "workflow"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1152,
+        112
+      ],
+      "id": "02e50f4a-5505-43d9-996d-ccba76906074",
+      "name": "When Executed by Another Workflow"
+    }
+  ],
+  "pinData": {
+    "When Executed by Another Workflow": [
+      {
+        "json": {
+          "workflow": "mail_label_draft"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Read/Write Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Get Contents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Contents": {
+      "main": [
+        []
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "6eSlQKBSKH5m92AS",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "465f3c97-6ccd-4805-9ad7-a9e7b58fc515",
+  "meta": {
+    "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"
+  },
+  "nodeGroups": [],
+  "id": "d2H1qzWSChDbS5no",
+  "tags": []
+}

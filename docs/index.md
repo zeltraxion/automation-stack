@@ -18,6 +18,7 @@ Detailed documentation for this repository. Start here.
 | [`error_handler.md`](error_handler.md)   | The shared failure alert — what it catches, and what it deliberately does not |
 | [`mail_watchdog.md`](mail_watchdog.md)   | The Hermes cron watchdog — the only check that runs outside n8n, and why that matters |
 | [`hermes_gateway.md`](hermes_gateway.md) | The Slack-facing agent — Socket Mode, `#tars_chat`, the persona file, the model chain |
+| [`control_plane.md`](control_plane.md) | The vault switch file and the `read_switches` helper — the one file both n8n and Hermes read |
 | [`test_workflows.md`](test_workflows.md) | The two learning workflows, and measured agent-configuration results   |
 
 ## Reading order
@@ -44,11 +45,20 @@ for why Socket Mode removed the public-URL problem that stalled the Telegram pla
 home DM, and where the persona and model chain are configured. The two Hermes pages share a workspace and nothing
 else — different transports, different credentials, which is explained in both.
 
+`control_plane.md` is the one page that is not about a single workflow. It covers the switch file in the Obsidian
+vault, the `read_switches` helper that parses it, and the two nodes any scheduled workflow needs to respect it. Read
+it when adding a switch to a new workflow, or before changing anything that looks like error handling in that chain —
+the fail-open behaviour depends on three settings that are easy to lose.
+
 ## Conventions
 
 Workflows live in `n8n_workflows/` as exported JSON. Each production workflow gets a page here named after it.
 
 Test and learning workflows are documented together in `test_workflows.md` rather than one page each.
+
+Helper sub-workflows are documented inside the page for the thing they serve rather than getting one of their own —
+`read_switches` lives in `control_plane.md`, `mail_categorizer_jev` has its own page only because it carries the
+classification design.
 
 Not everything documented here is an n8n workflow. `mail_watchdog.md` covers a Hermes cron job whose source lives in
 `scripts/`, mirrored into `~/.hermes/scripts/` because Hermes only runs scripts from its own directory. Anything that
