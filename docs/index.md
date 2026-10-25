@@ -17,6 +17,7 @@ Detailed documentation for this repository. Start here.
 | [`mail_categorizer.md`](mail_categorizer.md) | The superseded Text Classifier version, kept as the rollback — category set, label IDs |
 | [`error_handler.md`](error_handler.md)   | The shared failure alert — what it catches, and what it deliberately does not |
 | [`mail_watchdog.md`](mail_watchdog.md)   | The Hermes cron watchdog — the only check that runs outside n8n, and why that matters |
+| [`hermes_gateway.md`](hermes_gateway.md) | The Slack-facing agent — Socket Mode, `#tars_chat`, the persona file, the model chain |
 | [`test_workflows.md`](test_workflows.md) | The two learning workflows, and measured agent-configuration results   |
 
 ## Reading order
@@ -37,6 +38,11 @@ knowing what it does not catch is what tells you when a node needs its own error
 `mail_watchdog.md` is its counterpart and reads best straight after it. `error_handler` covers executions that start
 and fail; the watchdog covers the one case it structurally cannot see — a scheduled run that never started at all.
 It is also the only page here about something that runs outside n8n and Docker, which is the whole reason it works.
+
+`hermes_gateway.md` is the other half of that outside-n8n story: the agent you actually talk to, over Slack. Read it
+for why Socket Mode removed the public-URL problem that stalled the Telegram plan, how `#tars_chat` differs from the
+home DM, and where the persona and model chain are configured. The two Hermes pages share a workspace and nothing
+else — different transports, different credentials, which is explained in both.
 
 ## Conventions
 
