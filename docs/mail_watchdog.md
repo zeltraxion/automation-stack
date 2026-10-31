@@ -115,6 +115,20 @@ a wrong verdict. Two worked examples — one stale-but-not-failed, one genuine f
 run. Same finding as `memory_agent`'s two-fact save and the draft branch's invented availability: a stated rule
 slips, a shown shape holds.
 
+The examples carry invented values — `example_workflow`, execution `10001`, `EXAMPLEERROR` — and say so in the
+prompt. The first version used the real execution id and the real age, which made the test unfalsifiable: a report
+quoting `execution 899` could have been checked or copied, and there was no way to tell. A copied `example_workflow`
+is visible in Slack immediately; a copied `899` is not.
+
+The prompt lives in `prompts/mail-watchdog.md` and is applied with:
+
+```bash
+hermes cron edit f8c760a9a8f4 --prompt "$(cat prompts/mail-watchdog.md)"
+```
+
+It is the only part of this job Hermes stores but git does not, so the file is the source and `jobs.json` is the
+copy. Nothing enforces that — re-apply after editing.
+
 Two by-design behaviours are named as **not** faults, because the first run reported one of them as the cause:
 
 - `nimble:9b` and `qwen3:8b` are absent from `ollama ps` on purpose — `keep_alive: "30s"` evicts them between runs,
