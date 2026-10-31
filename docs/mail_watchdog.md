@@ -38,31 +38,72 @@ Two further reasons it is not an n8n workflow:
 
 ```mermaid
 flowchart LR
-    C["<b>Hermes cron</b><br/>30 10 * * *<br/>no_agent"]
+    C["<b>Hermes cron</b><br/>30 10 * * *"]
     S["<b>mail-watchdog.py</b>"]
     A["<b>GET /api/v1/executions</b><br/>localhost:5678 · limit 1"]
     D{"state?"}
     L["<b>#tars_logs</b><br/>green card"]
     X["<b>#tars_alerts</b><br/>amber or red card"]
+    G{"wakeAgent?"}
+    Z["<b>nothing</b><br/>$0 tick"]
+    AG["<b>agent</b><br/>diagnose · report to Slack"]
     C --> S --> A --> D
-    D -->|healthy| L
+    D -->|healthy / paused| L
     D -->|stale / failed / never ran| X
+    L --> G
+    X --> G
+    G -->|false| Z
+    G -->|true| AG
 ```
 
-## No-agent mode
+## The wakeAgent gate
 
-The job runs with `--no-agent`, which removes the LLM from the cron path entirely. Hermes becomes a timer plus a
-messenger:
+The job ran with `--no-agent` until 2026-10-31. That removed the LLM entirely, which was right about cost and wrong
+about what happens next: a red card at 10:30 sat there until a person read it.
 
+The job now runs in agent mode, but the script decides whether the agent runs at all. The last line of its stdout is
+a JSON verdict Hermes reads:
+
+```python
+print(json.dumps({"wakeAgent": False}))                      # skip — $0
+print(json.dumps({"wakeAgent": True, "context": {...}}))     # wake, with facts
 ```
-scheduler tick ──▶ run script ──stdout──▶ delivery router
-```
 
-No model call, no tokens, no RAM, no Ollama queue. The watchdog never competes with `mail_label_draft` for the GPU.
+| State | Wakes an agent |
+|---|---|
+| paused | no — deliberate, not a fault |
+| healthy | no — nothing to diagnose |
+| last run failed | yes |
+| stale (>26h) | yes |
+| never run | yes |
 
-The alternative — an LLM job given a prompt such as *"tell me if the mail workflow did not run"* — was rejected. It
-costs a model call every morning and an 8B model can misread a timestamp and report healthy when it is not. A
-watchdog that lies is worse than no watchdog.
+The gate is evaluated **before any model loads**, so a healthy morning still costs nothing: no tokens, no RAM, no
+Ollama queue, no competing with `mail_label_draft` for the GPU. Only a bad morning spends anything.
+
+Omitting the flag defaults to `true`, so a script that crashes before printing wakes the agent. That is the wanted
+default — a watchdog that died is itself worth looking at.
+
+**Why not `--monitor-script`.** Hermes' other gate compares this run's output against the last run's, byte for byte,
+and wakes on any difference. The card contains `12.4h ago`, which changes every single day, so it would wake every
+morning and mean nothing. It would also fire on *recovery*, treating "fixed itself" as news. `wakeAgent` lets the
+script state its conclusion instead of having one inferred from its text.
+
+**The decision stays deterministic.** The original objection to an LLM job — *"an 8B model can misread a timestamp
+and report healthy when it is not"* — still holds, and the gate preserves it. Python decides whether something is
+wrong; the model is only asked **why**, and only once Python has already said yes. A watchdog that lies is still
+worse than no watchdog.
+
+### What the agent is told
+
+The prompt instructs it to diagnose and stop: read the failed execution, check whether the container is up, whether
+Ollama still serves `nimble:9b` and `qwen3:8b`, and whether the Gmail credential has aged out — then report what
+broke, which layer, and the single next action.
+
+It ends with *"Change nothing. No restarts, no re-runs, no config edits. This run diagnoses only."* Acting on its own
+is a later decision, to be made after reading a few of its reports — not before.
+
+It carries no `--model` pin, so it follows `model.default` (`qwen3.5:64k`, local). Vertex is configured in n8n but
+not in Hermes — `VERTEX_CREDENTIALS_PATH` is empty — so moving this job to a hosted model is its own task.
 
 ## The files
 
@@ -218,8 +259,11 @@ otherwise, so a rejected card fails the job rather than vanishing.
 
 ## Delivery
 
-The cron job runs with `--deliver local`. The script owns delivery, so Hermes posts nothing — which also removes the
-`Cronjob Response:` header and the "To stop or manage this job" footer Hermes prepends to its own deliveries.
+The script owns the daily card: it posts straight to the two Slack webhooks, so the colour, the channel and the
+layout are its own.
+
+Hermes' own delivery (`--deliver slack`) carries the **agent's diagnosis**, on the rare mornings one runs. The two do
+not overlap — one is the reading, the other is the explanation.
 
 Hermes still files the script's stdout under `~/.hermes/cron/output/<job_id>/`, one file per run, which is the debug
 trail when a card does not appear.
@@ -230,6 +274,22 @@ There is one `try`/`except` in either file, in `switch_enabled()`, and it is the
 handling — an unreadable switch file means the workflow is not paused, which is the same answer the n8n side reaches
 through two On Error settings. Everywhere else the rule holds: if n8n is unreachable the `requests` call raises, the
 script exits non-zero, and Hermes delivers that failure itself.
+
+### That last sentence was false for five days
+
+`--deliver local` does not only mean "the script owns the daily card". Hermes documents it as suppressing **failure
+notices entirely**, and the execution record agrees — every run of this job recorded `delivery_outcome = suppressed`.
+So a crashed watchdog reported to nobody. The watchdog built to catch silent failures had one.
+
+Two real crashes went unheard:
+
+```
+2026-10-25  ConnectionRefusedError: [Errno 61] Connection refused     (Docker not up yet)
+2026-10-27  socket.gaierror: nodename nor servname provided           (no DNS)
+```
+
+Fixed by `--failure-deliver slack`, which overrides the failure path alone and leaves the daily card where it was.
+Worth generalising: a delivery setting chosen for the happy path silently decided the unhappy one too.
 
 Seen in practice on 2026-10-25: the Mac was off at 07:00, Hermes fired the job as a catch-up at 11:14 on wake, Docker
 had not started yet, and the job reported:

@@ -3,7 +3,14 @@
 
 Healthy and paused go to #tars_logs, anything wrong goes to #tars_alerts. Exactly
 one card either way, so no card at all means this script did not run.
+
+The last line of stdout is Hermes' wakeAgent gate. Healthy and paused print
+false and the tick costs nothing; the three bad states print true and hand the
+agent the facts already gathered here. A crash prints nothing, and an omitted
+flag defaults to true — a watchdog that died is itself worth waking for.
 """
+
+import json
 
 from n8n_check import (switch_enabled, latest_execution, hours_since, send_card,
                        RED, AMBER, GREEN, GREY, N8N)
@@ -22,6 +29,7 @@ if not switch_enabled(NAME):
               "*Status*\n`paused`", "*Switch*\n`off`",
               "switch in `control_plane/switches.md`")
     print("paused card sent")
+    print(json.dumps({"wakeAgent": False}))
     raise SystemExit
 
 run = latest_execution(WORKFLOW_ID)
@@ -31,6 +39,7 @@ if run is None:
     headline = f":rotating_light: *{NAME}* has never run"
     left, right = "*Status*\n`none`", "*Executions*\n`0`"
     footer = "n8n holds no execution history for this workflow"
+    wake, reason = True, "never run"
 
 else:
     age = hours_since(run["startedAt"])
@@ -43,12 +52,27 @@ else:
     if run["status"] != "success":
         webhook, colour = ALERTS, RED
         headline = f":x: *{NAME}* — last run failed"
+        wake, reason = True, f"last run failed ({run['status']})"
     elif age > MAX_AGE_HOURS:
         webhook, colour = ALERTS, AMBER
         headline = f":warning: *{NAME}* — stale"
+        wake, reason = True, f"stale — {age:.1f}h since the last run, limit {MAX_AGE_HOURS}h"
     else:
         webhook, colour = LOGS, GREEN
         headline = f":white_check_mark: *{NAME}* — healthy"
+        wake, reason = False, "healthy"
 
 send_card(webhook, colour, headline, left, right, footer)
 print(f"card sent to {webhook}")
+
+# Last line, always. Everything the agent needs is already in hand, so waking it
+# costs one model call and no rediscovery.
+if not wake:
+    print(json.dumps({"wakeAgent": False}))
+else:
+    context = {"workflow": NAME, "reason": reason}
+    if run is not None:
+        context.update(execution_id=run["id"], status=run["status"],
+                       age_hours=round(age, 1),
+                       execution_url=f"{N8N}/workflow/{WORKFLOW_ID}/executions/{run['id']}")
+    print(json.dumps({"wakeAgent": True, "context": context}))
