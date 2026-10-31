@@ -218,10 +218,21 @@ The general rule: when an agent misbehaves, suspect the tool definitions and sys
   `/vault/control_plane/switches.md`; `mail-watchdog.py` runs natively and opens the same file at its real path. A
   paused workflow gets a grey card in `#tars_logs` instead of an amber alert, and the watchdog exits before calling
   the n8n API so that pausing mail and stopping Docker together stays quiet.
-- **`error_handler` is the shared failure alert.** Two nodes — Error Trigger into a red Slack card on `#tars_alerts`
+- **`error_handler` is the shared failure alert.** Three nodes — Error Trigger into a red Slack card on `#tars_alerts`
   naming the workflow, the failing node and a link to the execution. Set as the Error Workflow on all five production
   workflows; deliberately not on itself, since an error handler that errors calls itself. Documented in
   `docs/error_handler.md`.
+- **`error_handler` also pushes to Hermes.** A third node, `push_to_hermes`, POSTs the same four facts to
+  `http://host.docker.internal:8644/webhooks/n8n-failure`, a Hermes inbound webhook route that renders them into a
+  Slack DM with no agent and no model loaded (`deliver_only`). It is chained **after** the Slack node, not parallel
+  to it, so a dead gateway cannot cost the red card, and carries `onError: continueRegularOutput` for the same
+  reason. The route lives in `~/.hermes/config.yaml` under `platforms.webhook.routes`, not in this repository.
+  Documented in `docs/error_handler.md`.
+- **Downstream of any node, `$json` is that node's output — not the trigger's.** `push_to_hermes` runs after the
+  Slack node, where `$json` is the Slack API response (`{ok, channel, ts, …}`), so every field resolved to its `??`
+  fallback and the DM said `unknown` / `no message` while Hermes returned 200 and the execution stayed green.
+  `$('Error Trigger').item.json` reaches past the intervening node. The same trap as the `.all()[i]` pairing bug,
+  from the opposite direction: there the items shifted, here the source did.
 - **A node set to `Continue (using error output)` does not fail the execution, so `error_handler` never sees it.**
   That is the handover between the two logging styles: per-node error outputs report through the workflow's own Slack
   card, `error_handler` covers everything unhandled. Five nodes in `mail_label_draft` work that way.

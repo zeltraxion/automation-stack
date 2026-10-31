@@ -44,6 +44,25 @@
           "name": "Slack account"
         }
       }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8644/webhooks/n8n-failure",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  workflow: { name: $('Error Trigger').item.json.workflow?.name ?? 'unknown' },\n  execution: {\n    lastNodeExecuted: $('Error Trigger').item.json.execution?.lastNodeExecuted ?? 'unknown',\n    error: { message: $('Error Trigger').item.json.execution?.error?.message ?? 'no message' },\n    url: $('Error Trigger').item.json.execution?.url ?? 'no link'\n  }\n}) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        240,
+        -32
+      ],
+      "id": "86c4d6a0-2251-4489-8841-5a32600c3b95",
+      "name": "push_to_hermes",
+      "onError": "continueRegularOutput"
     }
   ],
   "pinData": {},
@@ -58,6 +77,17 @@
           }
         ]
       ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "push_to_hermes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -65,7 +95,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "af71d91c-b11d-4eb4-b025-50b723db65a7",
+  "versionId": "401b38b3-1e90-44db-837d-eaca269f9ea0",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0085c89e90626ccf2ccf37ea0ff8b9d4f1a5177805e8b0602027105b8730796a"

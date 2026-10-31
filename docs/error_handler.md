@@ -1,9 +1,9 @@
 # error_handler
 
-One workflow that fires whenever any other workflow fails, and posts a red card to `#tars_alerts`. It is set as the
-Error Workflow on every production workflow in this repository.
+One workflow that fires whenever any other workflow fails, posts a red card to `#tars_alerts`, and pushes the same
+failure to Hermes. It is set as the Error Workflow on every production workflow in this repository.
 
-Two nodes. It is the smallest workflow here and the one with the widest reach.
+Three nodes. It is the smallest workflow here and the one with the widest reach.
 
 ## Why it exists
 
@@ -23,8 +23,12 @@ Gmail dropped a connection, the run died at the first node, and nothing was labe
 flowchart LR
     T["<b>Error Trigger</b><br/>no parameters"]
     S["<b>alert_logs</b><br/>Slack · #tars_alerts · red"]
-    T --> S
+    H["<b>push_to_hermes</b><br/>POST · 127.0.0.1:8644<br/>continueRegularOutput"]
+    T --> S --> H
 ```
+
+The Slack card comes first on purpose. It is the alert that must never be lost, and a node that has already run
+cannot be stopped by one that fails after it.
 
 ## The Error Trigger
 
@@ -64,6 +68,45 @@ shape produces a card saying `unknown`, not a second failure inside the error ha
 
 The error text is wrapped in `JSON.stringify(...).slice(1,-1)` so quotes inside it cannot break the Block Kit JSON.
 Same technique as the memory workflows.
+
+## The push to Hermes
+
+`push_to_hermes` POSTs the same four facts to a Hermes inbound webhook route:
+
+```
+POST http://host.docker.internal:8644/webhooks/n8n-failure
+```
+
+Hermes renders them into a Slack DM. No agent runs and no model is loaded — the route is `deliver_only`, so the
+template *is* the message. Zero tokens, sub-second.
+
+Why a second alert at all, when the card already exists: this is the path that will later wake the mail watchdog
+instead of writing text. Swapping `deliver_only: true` for `cron_job: mail-watchdog` on the route changes what the
+POST does without touching this workflow. The message is the proof the pipe works; the pipe is the point.
+
+### Two settings that are not optional
+
+**`onError: continueRegularOutput`.** Hermes being down must not turn a reported failure into a failed error handler.
+With it, a dead gateway costs the DM and nothing else — the card has already gone.
+
+**`$('Error Trigger').item.json`, never `$json`.** This node runs *after* the Slack node, so `$json` is the Slack
+API response — `{ok, channel, ts, …}` — not the failure payload. Written with `$json` every field resolves to its
+`??` fallback and the DM arrives saying `unknown` / `no message`, with a 200 from Hermes and a green execution.
+Silent success, the worst shape a bug can take.
+
+The body is built with `JSON.stringify` rather than string interpolation, because error messages carry quotes and
+newlines that break a hand-written JSON template.
+
+### Where the route lives
+
+`~/.hermes/config.yaml`, under `platforms.webhook.routes.n8n-failure`. Not in this repository — it is machine
+configuration, like the Ollama endpoint. The adapter ships with Hermes; the route is data telling it what to do with
+one path.
+
+The gateway binds to `127.0.0.1` and the route uses `INSECURE_NO_AUTH`, which Hermes permits only on a loopback
+bind and refuses to start otherwise. Docker still reaches it through `host.docker.internal`, the same way n8n
+reaches Ollama on `127.0.0.1:11434`. When the gateway moves to a host where loopback no longer protects it, that
+route needs a real HMAC secret — which in turn needs `NODE_FUNCTION_ALLOW_BUILTIN=crypto` on this container.
 
 ## Which workflows point at it
 
@@ -109,3 +152,4 @@ duplicate.
 | No severity levels | Every failure is red. A retry-exhausted Gmail blip and a broken credential look identical |
 | No deduplication | A workflow failing on every run posts on every run |
 | No recovery | It reports. Anything that should keep running past a failure needs a per-node error output instead |
+| Two alerts per failure | The red card and the Hermes DM carry the same four facts. Deliberate while the push path is being proven; it stops once the route fires a cron job instead of delivering text |
