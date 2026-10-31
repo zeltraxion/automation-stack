@@ -95,12 +95,32 @@ worse than no watchdog.
 
 ### What the agent is told
 
-The prompt instructs it to diagnose and stop: read the failed execution, check whether the container is up, whether
-Ollama still serves `nimble:9b` and `qwen3:8b`, and whether the Gmail credential has aged out — then report what
-broke, which layer, and the single next action.
+The prompt instructs it to diagnose and stop: read the execution, check whether the container is up, whether Ollama
+answers `/api/tags`, and whether the Gmail credential has aged out. It ends with *"Change nothing. No restarts, no
+re-runs, no config edits. This run diagnoses only."* Acting on its own is a later decision, to be made after reading
+a few of its reports — not before.
 
-It ends with *"Change nothing. No restarts, no re-runs, no config edits. This run diagnoses only."* Acting on its own
-is a later decision, to be made after reading a few of its reports — not before.
+The reply shape is fixed to four labelled lines:
+
+```
+*What broke* — one sentence
+*Layer* — one of: n8n, Ollama, Gmail, schedule, unknown
+*Evidence* — what you ran and what it returned
+*Next action* — one thing, or "none"
+```
+
+Free prose was tried first and failed in the way this repository has now seen three times. The first real run
+produced **two** `What Broke` lines contradicting each other, literal `\n` escape sequences instead of newlines, and
+a wrong verdict. Two worked examples — one stale-but-not-failed, one genuine failure — fixed all three on the next
+run. Same finding as `memory_agent`'s two-fact save and the draft branch's invented availability: a stated rule
+slips, a shown shape holds.
+
+Two by-design behaviours are named as **not** faults, because the first run reported one of them as the cause:
+
+- `nimble:9b` and `qwen3:8b` are absent from `ollama ps` on purpose — `keep_alive: "30s"` evicts them between runs,
+  since 16 GB cannot hold both resident. Only a model missing from `ollama list`, or `/api/tags` failing, is a fault.
+- A stale workflow whose last run **succeeded** did not fail; it never started. No execution exists, so no error
+  exists either — which is the blind spot this watchdog was built for, and the one thing a webhook can never catch.
 
 It carries no `--model` pin, so it follows `model.default` (`qwen3.5:64k`, local). Vertex is configured in n8n but
 not in Hermes — `VERTEX_CREDENTIALS_PATH` is empty — so moving this job to a hosted model is its own task.
